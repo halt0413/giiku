@@ -19,28 +19,30 @@ jobs:
         working-directory: apps/frontend
 
     steps:
-      # リポジトリをチェックアウト
+      # リポジトリ取得
       - uses: actions/checkout@v4
 
-      # Node.jsをセットアップ
+      # pnpmセットアップ
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false 
+
+      # Node.jsセットアップ
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
-      # pnpmをインストール
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9   # pnpmのバージョン
+      # 依存関係インストール
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      # 依存関係をインストール
-      - run: pnpm install --frozen-lockfile
-
-      # Next.jsをビルド＆静的出力
+      # Next.jsビルドと静的出力
       - name: Build & Export
         run: |
           pnpm build
-          pnpm next export  # out/ 作成
+          pnpm next export
 
       # AWS認証
       - name: Configure AWS Credentials (OIDC)
@@ -50,7 +52,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: github-actions-frontend
 
-      # S3へ静的ファイルをアップロード
+      # S3アップロード:アセット
       - name: Sync assets (long cache)
         run: |
           aws s3 sync out s3://${{ secrets.S3_BUCKET }} \
@@ -58,7 +60,7 @@ jobs:
             --exclude "*.html" \
             --cache-control "public, max-age=31536000, immutable"
 
-      # HTMLファイルはno-cacheで上書き
+      # S3アップロード:html
       - name: Sync HTML (no cache)
         run: |
           find out -type f -name "*.html" -print0 | \
