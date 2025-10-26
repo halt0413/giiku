@@ -1,0 +1,58 @@
+name: giilu
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "apps/frontend/**"
+      - ".github/workflows/deploy-frontend-s3.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build & Export
+        run: |
+          pnpm build
+          pnpm next export  # out/ 作成
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ap-northeast-1
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-frontend
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync out s3://${{ secrets.S3_BUCKET }} --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html"
+          aws s3 sync out s3://${{ secrets.S3_BUCKET }} --delete \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --include "*.html"
+
+      - name: Invalidate CloudFront
+        if: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
