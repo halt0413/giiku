@@ -40,19 +40,27 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: github-actions-frontend
 
-      - name: Sync to S3
+      - name: Sync assets (long cache)
         run: |
-          aws s3 sync out s3://${{ secrets.S3_BUCKET }} --delete \
-            --cache-control "public, max-age=31536000, immutable" \
-            --exclude "*.html"
-          aws s3 sync out s3://${{ secrets.S3_BUCKET }} --delete \
+          aws s3 sync out s3://${{ secrets.S3_BUCKET }} \
+            --delete \
+            --exclude "*.html" \
+            --cache-control "public, max-age=31536000, immutable"
+
+      - name: Sync HTML (no cache)
+        run: |
+          # *.html を個別にアップ（Content-Type を text/html に）
+          find out -type f -name "*.html" -print0 | \
+          xargs -0 -I{} aws s3 cp "{}" "s3://${{ secrets.S3_BUCKET }}/$(realpath --relative-to=out "{}")" \
             --cache-control "no-cache, no-store, must-revalidate" \
-            --include "*.html"
+            --content-type "text/html"
 
-      - name: Invalidate CloudFront
-        if: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+      - name: Invalidate CloudFront (if CF ID is set)
         run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/*"
-
+          if [ -n "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
+            aws cloudfront create-invalidation \
+              --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+              --paths "/*"
+          else
+            echo "CLOUDFRONT_DISTRIBUTION_ID not set; skipping invalidation."
+          fi
