@@ -19,32 +19,46 @@ jobs:
         working-directory: apps/frontend
 
     steps:
-      # リポジトリ取得
       - uses: actions/checkout@v4
 
-      # pnpmセットアップ
+      # pnpmを最初に確実に入れる
       - uses: pnpm/action-setup@v4
         with:
           version: 9
-          run_install: false 
+          run_install: false
 
-      # Node.jsセットアップ
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
-      # 依存関係インストール
+      # 何が動いているか可視化
+      - name: Show versions & workspace
+        run: |
+          node -v
+          pnpm -v
+          pwd
+          ls -la
+          cat package.json || true
+
+      # 依存インストール
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Next.jsビルドと静的出力
+      # Next.js ビルド＆静的出力
       - name: Build & Export
         run: |
+          set -euxo pipefail
+          # ビルドスクリプト確認（無いと失敗）
+          jq -r '.scripts.build' package.json
           pnpm build
           pnpm next export
+          # out ができているか検証（無ければ即失敗点が分かる）
+          test -d out
+          echo "Exported files:"
+          find out -maxdepth 2 -type f | head -n 50
 
-      # AWS認証
+      # AWS 認証
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -52,27 +66,34 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: github-actions-frontend
 
-      # S3アップロード:アセット
+      # 認証できているか確認
+      - name: WhoAmI (STS)
+        run: aws sts get-caller-identity
+
+      # S3へアップロード：アセット
       - name: Sync assets (long cache)
         run: |
+          set -euxo pipefail
+          test -n "${{ secrets.S3_BUCKET }}"
           aws s3 sync out s3://${{ secrets.S3_BUCKET }} \
             --delete \
             --exclude "*.html" \
             --cache-control "public, max-age=31536000, immutable"
 
-      # S3アップロード:html
+      # S3へアップロード：HTML
       - name: Sync HTML (no cache)
         run: |
+          set -euxo pipefail
+          # *.html が1件も無い時のために -r を付ける（xargs無入力時にエラーにしない）
           find out -type f -name "*.html" -print0 | \
-          xargs -0 -I{} aws s3 cp "{}" "s3://${{ secrets.S3_BUCKET }}/$(realpath --relative-to=out "{}")" \
+          xargs -0 -r -I{} aws s3 cp "{}" "s3://${{ secrets.S3_BUCKET }}/$(realpath --relative-to=out "{}")" \
             --cache-control "no-cache, no-store, must-revalidate" \
             --content-type "text/html"
 
-      # CloudFrontキャッシュ無効化
+      # CloudFront無効化
       - name: Invalidate CloudFront (if CF ID is set)
         run: |
           if [ -n "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
-            echo "Invalidating CloudFront cache..."
             aws cloudfront create-invalidation \
               --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
               --paths "/*"
