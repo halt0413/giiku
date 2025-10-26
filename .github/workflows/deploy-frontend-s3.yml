@@ -30,17 +30,36 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Show tool versions
+        run: |
+          set -eux
+          node -v
+          pnpm -v
+          which pnpm || true
+          which aws || true
+          aws --version || true
+          pwd && ls -la
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build (static export)
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
         run: |
           set -euxo pipefail
           pnpm build
           test -d out
-          echo "Exported files:"
+          echo "Exported files (top 50):"
           find out -maxdepth 2 -type f | head -n 50
+
+      - name: Assert AWS secrets
+        run: |
+          set -eux
+          test -n "${{ secrets.AWS_ROLE_ARN }}"
+          test -n "${{ secrets.S3_BUCKET }}"
 
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -49,30 +68,30 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: github-actions-frontend
 
+      - name: WhoAmI (STS)
+        run: aws sts get-caller-identity
+
       - name: Sync assets (long cache)
         run: |
           set -euxo pipefail
-          test -n "${{ secrets.S3_BUCKET }}"
-          aws s3 sync out s3://${{ secrets.S3_BUCKET }} \
-            --delete \
-            --exclude "*.html" \
-            --cache-control "public, max-age=31536000, immutable"
+          aws s3 sync out s3://${{ secrets.S3_BUCKET }} --delete --exclude "*.html" --cache-control "public, max-age=31536000, immutable"
 
       - name: Sync HTML (no cache)
         run: |
           set -euxo pipefail
-          # *.html が無い場合もエラーにしない(-r)
-          find out -type f -name "*.html" -print0 | \
-          xargs -0 -r -I{} aws s3 cp "{}" "s3://${{ secrets.S3_BUCKET }}/$(realpath --relative-to=out "{}")" \
-            --cache-control "no-cache, no-store, must-revalidate" \
-            --content-type "text/html"
+          shopt -s globstar nullglob
+          for f in out/**/*.html; do
+            key="${f#out/}"
+            aws s3 cp "$f" "s3://${{ secrets.S3_BUCKET }}/$key" \
+              --cache-control "no-cache, no-store, must-revalidate" \
+              --content-type "text/html"
+          done
 
       - name: Invalidate CloudFront (if CF ID is set)
         run: |
+          set -eux
           if [ -n "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
-            aws cloudfront create-invalidation \
-              --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
-              --paths "/*"
+            aws cloudfront create-invalidation --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*"
           else
-            echo "CLOUDFRONT_ID not set; skipping invalidation."
+            echo "CLOUDFRONT_DISTRIBUTION_ID not set; skipping invalidation."
           fi
