@@ -31,25 +31,13 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      - name: Show versions & workspace
-        run: |
-          node -v
-          pnpm -v
-          pwd
-          ls -la
-          cat package.json || true
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm build
-        
+      - name: Build (static export)
+        run: |
           set -euxo pipefail
-          jq -r '.scripts.build' package.json
           pnpm build
-          pnpm next export
-
           test -d out
           echo "Exported files:"
           find out -maxdepth 2 -type f | head -n 50
@@ -60,9 +48,6 @@ jobs:
           aws-region: ap-northeast-1
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: github-actions-frontend
-
-      - name: WhoAmI (STS)
-        run: aws sts get-caller-identity
 
       - name: Sync assets (long cache)
         run: |
@@ -76,7 +61,7 @@ jobs:
       - name: Sync HTML (no cache)
         run: |
           set -euxo pipefail
-          # *.html が1件も無い時のために -r を付ける（xargs無入力時にエラーにしない）
+          # *.html が無い場合もエラーにしない(-r)
           find out -type f -name "*.html" -print0 | \
           xargs -0 -r -I{} aws s3 cp "{}" "s3://${{ secrets.S3_BUCKET }}/$(realpath --relative-to=out "{}")" \
             --cache-control "no-cache, no-store, must-revalidate" \
@@ -89,5 +74,5 @@ jobs:
               --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
               --paths "/*"
           else
-            echo "CLOUDFRONT_DISTRIBUTION_ID not set; skipping invalidation."
+            echo "CLOUDFRONT_ID not set; skipping invalidation."
           fi
