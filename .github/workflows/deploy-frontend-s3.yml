@@ -21,7 +21,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # pnpmを最初に確実に入れる
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -32,7 +31,6 @@ jobs:
           node-version: 20
           cache: pnpm
 
-      # 何が動いているか可視化
       - name: Show versions & workspace
         run: |
           node -v
@@ -41,24 +39,21 @@ jobs:
           ls -la
           cat package.json || true
 
-      # 依存インストール
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Next.js ビルド＆静的出力
-      - name: Build & Export
-        run: |
+      - name: Build
+        run: pnpm build
+        
           set -euxo pipefail
-          # ビルドスクリプト確認（無いと失敗）
           jq -r '.scripts.build' package.json
           pnpm build
           pnpm next export
-          # out ができているか検証（無ければ即失敗点が分かる）
+
           test -d out
           echo "Exported files:"
           find out -maxdepth 2 -type f | head -n 50
 
-      # AWS 認証
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -66,11 +61,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: github-actions-frontend
 
-      # 認証できているか確認
       - name: WhoAmI (STS)
         run: aws sts get-caller-identity
 
-      # S3へアップロード：アセット
       - name: Sync assets (long cache)
         run: |
           set -euxo pipefail
@@ -80,7 +73,6 @@ jobs:
             --exclude "*.html" \
             --cache-control "public, max-age=31536000, immutable"
 
-      # S3へアップロード：HTML
       - name: Sync HTML (no cache)
         run: |
           set -euxo pipefail
@@ -90,7 +82,6 @@ jobs:
             --cache-control "no-cache, no-store, must-revalidate" \
             --content-type "text/html"
 
-      # CloudFront無効化
       - name: Invalidate CloudFront (if CF ID is set)
         run: |
           if [ -n "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
