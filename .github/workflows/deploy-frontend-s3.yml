@@ -17,6 +17,7 @@ jobs:
     defaults:
       run:
         working-directory: apps/frontend
+        shell: bash  
 
     steps:
       - uses: actions/checkout@v4
@@ -30,11 +31,12 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
 
       - name: Show tool versions
+        shell: bash
         run: |
           set -eux
+          echo "BASH_VERSION=${BASH_VERSION:-unknown}"
           node -v
           pnpm -v
           which pnpm || true
@@ -74,24 +76,29 @@ jobs:
       - name: Sync assets (long cache)
         run: |
           set -euxo pipefail
-          aws s3 sync out s3://${{ secrets.S3_BUCKET }} --delete --exclude "*.html" --cache-control "public, max-age=31536000, immutable"
+          aws s3 sync out "s3://${{ secrets.S3_BUCKET }}" \
+            --delete \
+            --exclude "*.html" \
+            --cache-control "public, max-age=31536000, immutable" \
+            --only-show-errors
 
       - name: Sync HTML (no cache)
         run: |
           set -euxo pipefail
-          shopt -s globstar nullglob
-          for f in out/**/*.html; do
-            key="${f#out/}"
-            aws s3 cp "$f" "s3://${{ secrets.S3_BUCKET }}/$key" \
-              --cache-control "no-cache, no-store, must-revalidate" \
-              --content-type "text/html"
-          done
+          aws s3 sync out "s3://${{ secrets.S3_BUCKET }}" \
+            --exclude "*" \
+            --include "*.html" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "text/html" \
+            --only-show-errors
 
       - name: Invalidate CloudFront (if CF ID is set)
         run: |
           set -eux
           if [ -n "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
-            aws cloudfront create-invalidation --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*"
+            aws cloudfront create-invalidation \
+              --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+              --paths "/*"
           else
             echo "CLOUDFRONT_DISTRIBUTION_ID not set; skipping invalidation."
           fi
