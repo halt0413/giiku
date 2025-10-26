@@ -19,20 +19,30 @@ jobs:
         working-directory: apps/frontend
 
     steps:
+      # リポジトリをチェックアウト
       - uses: actions/checkout@v4
 
+      # Node.jsをセットアップ
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-      - run: corepack enable
+
+      # pnpmをインストール
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9   # pnpmのバージョン
+
+      # 依存関係をインストール
       - run: pnpm install --frozen-lockfile
 
+      # Next.jsをビルド＆静的出力
       - name: Build & Export
         run: |
           pnpm build
           pnpm next export  # out/ 作成
 
+      # AWS認証
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -40,6 +50,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: github-actions-frontend
 
+      # S3へ静的ファイルをアップロード
       - name: Sync assets (long cache)
         run: |
           aws s3 sync out s3://${{ secrets.S3_BUCKET }} \
@@ -47,17 +58,19 @@ jobs:
             --exclude "*.html" \
             --cache-control "public, max-age=31536000, immutable"
 
+      # HTMLファイルはno-cacheで上書き
       - name: Sync HTML (no cache)
         run: |
-          # *.html を個別にアップ（Content-Type を text/html に）
           find out -type f -name "*.html" -print0 | \
           xargs -0 -I{} aws s3 cp "{}" "s3://${{ secrets.S3_BUCKET }}/$(realpath --relative-to=out "{}")" \
             --cache-control "no-cache, no-store, must-revalidate" \
             --content-type "text/html"
 
+      # CloudFrontキャッシュ無効化
       - name: Invalidate CloudFront (if CF ID is set)
         run: |
           if [ -n "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
+            echo "Invalidating CloudFront cache..."
             aws cloudfront create-invalidation \
               --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
               --paths "/*"
