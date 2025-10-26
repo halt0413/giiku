@@ -31,3 +31,4 @@ pgdata/
 
 *.bak
 *.tmp
+apps/*/pnpm-lock.yaml # 任意
