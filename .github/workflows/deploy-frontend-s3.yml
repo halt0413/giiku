@@ -71,7 +71,10 @@ jobs:
           role-session-name: github-actions-frontend
 
       - name: WhoAmI (STS)
-        run: aws sts get-caller-identity
+        run: |
+          set -eux
+          aws sts get-caller-identity
+          echo "ASSUMED ROLE: $(aws sts get-caller-identity --query 'Arn' --output text)"
 
       - name: Sync assets (long cache)
         run: |
