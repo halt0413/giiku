@@ -2,7 +2,7 @@ name: giilu
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
       - "apps/frontend/**"
       - ".github/workflows/deploy-frontend-s3.yml"
@@ -12,13 +12,9 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  biome:
+    name: Lint & Format (Biome)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/frontend
-        shell: bash  
-
     steps:
       - uses: actions/checkout@v4
 
@@ -32,6 +28,30 @@ jobs:
           node-version: 20
           cache: pnpm
 
+      - name: Install deps (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Biome CI (repo-wide)
+        run: pnpm ci:biome
+
+  deploy:
+    name: Deploy frontend to S3
+    runs-on: ubuntu-latest
+    needs: biome
+    defaults:
+      run:
+        working-directory: apps/frontend
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
       - name: Show tool versions
         shell: bash
         run: |
@@ -43,10 +63,8 @@ jobs:
           which aws || true
           aws --version || true
           pwd && ls -la
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
       - name: Build (static export)
         env:
           NEXT_TELEMETRY_DISABLED: '1'
@@ -56,26 +74,22 @@ jobs:
           test -d out
           echo "Exported files (top 50):"
           find out -maxdepth 2 -type f | head -n 50
-
       - name: Assert AWS secrets
         run: |
           set -eux
           test -n "${{ secrets.AWS_ROLE_ARN }}"
           test -n "${{ secrets.S3_BUCKET }}"
-
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ap-northeast-1
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: github-actions-frontend
-
       - name: WhoAmI (STS)
         run: |
           set -eux
           aws sts get-caller-identity
           echo "ASSUMED ROLE: $(aws sts get-caller-identity --query 'Arn' --output text)"
-
       - name: Sync assets (long cache)
         run: |
           set -euxo pipefail
@@ -84,7 +98,6 @@ jobs:
             --exclude "*.html" \
             --cache-control "public, max-age=31536000, immutable" \
             --only-show-errors
-
       - name: Sync HTML (no cache)
         run: |
           set -euxo pipefail
@@ -94,7 +107,6 @@ jobs:
             --cache-control "no-cache, no-store, must-revalidate" \
             --content-type "text/html" \
             --only-show-errors
-
       - name: Invalidate CloudFront (if CF ID is set)
         run: |
           set -eux
