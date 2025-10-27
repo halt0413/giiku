@@ -1,0 +1,73 @@
+name: Deploy Frontend 
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "apps/frontend/**"
+      - ".github/workflows/deploy-frontend.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+  PARAM_NAME_PROD: /giilu/prod/NEXT_PUBLIC_API_URL
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Read API URL from SSM (prod)
+        id: ssm
+        run: |
+          VALUE=$(aws ssm get-parameter --name "${PARAM_NAME_PROD}" --query "Parameter.Value" --output text)
+          echo "api_url=$VALUE" >> "$GITHUB_OUTPUT"
+
+      - name: Build (static export)
+        env:
+          NEXT_PUBLIC_API_URL: ${{ steps.ssm.outputs.api_url }}
+          NODE_ENV: production
+        run: |
+          set -euxo pipefail
+          pnpm build
+          test -d out
+
+      - name: Sync to S3 (prod)
+        env:
+          S3_BUCKET_PROD: ${{ secrets.S3_BUCKET_PROD }}
+        run: |
+          aws s3 sync ./out "s3://$S3_BUCKET_PROD" --delete
+
+      - name: CloudFront Invalidation (prod)
+        env:
+          CF_DISTRIBUTION_ID_PROD: ${{ secrets.CF_DISTRIBUTION_ID_PROD }}
+        run: |
+          aws cloudfront create-invalidation --distribution-id "$CF_DISTRIBUTION_ID_PROD" --paths "/*"
