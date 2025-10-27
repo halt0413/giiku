@@ -1,0 +1,84 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "apps/backend/**"
+      - ".github/workflows/deploy-backend.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+  STACK_NAME: giilu-backend-httpapi
+  ARTIFACT_BUCKET: ${{ secrets.AWS_ARTIFACT_BUCKET }}
+  PARAM_NAME_PROD: /giilu/prod/NEXT_PUBLIC_API_URL
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Package (upload dist to S3)
+        working-directory: apps
+        run: |
+          aws cloudformation package \
+            --template-file backend/template.yaml \
+            --s3-bucket "${ARTIFACT_BUCKET}" \
+            --output-template-file packaged.yaml
+
+      - name: Deploy stack
+        id: deploy
+        working-directory: apps
+        run: |
+          aws cloudformation deploy \
+            --template-file packaged.yaml \
+            --stack-name "${STACK_NAME}" \
+            --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+            --parameter-overrides ProjectName=giilu-backend
+          URL=$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text)
+          echo "api_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "API Endpoint: $URL"
+
+      - name: Put API URL to SSM (prod)
+        env:
+          API_URL: ${{ steps.deploy.outputs.api_url }}
+        run: |
+          aws ssm put-parameter \
+            --name "${PARAM_NAME_PROD}" \
+            --type String \
+            --overwrite \
+            --value "${API_URL}"
+          echo "Saved ${API_URL} to ${PARAM_NAME_PROD}"
