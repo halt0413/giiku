@@ -1,11 +1,11 @@
-name: Deploy Backend
+name: Deploy Backend (HTTP API + Lambda) - Debug
 
 on:
   push:
     branches: [ "main" ]
     paths:
       - "apps/backend/**"
-      - ".github/workflows/deploy-backend.yml"
+      - ".github/workflows/deploy-backend-debug.yml"
 
 permissions:
   id-token: write
@@ -16,33 +16,52 @@ env:
   STACK_NAME: giilu-backend-httpapi
   ARTIFACT_BUCKET: ${{ secrets.AWS_ARTIFACT_BUCKET }}
   PARAM_NAME_PROD: /giilu/prod/NEXT_PUBLIC_API_URL
+  # ▼ AWS CLI のリトライ/ページャ/デバッグ制御
+  AWS_PAGER: ""
+  AWS_RETRY_MODE: standard
+  AWS_MAX_ATTEMPTS: "3"
+  # デバッグログを詳細化したいときは「Actions > Run workflow」から 1 を入れて実行
+  AWS_DEBUG: "0"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-        working-directory: apps/backend
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - name: Print basic context (no secrets)
+        run: |
+          echo "Git ref: $GITHUB_REF"
+          echo "Actor: $GITHUB_ACTOR"
+          echo "Repo: $GITHUB_REPOSITORY"
+          echo "Runner OS: $RUNNER_OS"
+          echo "Region: ${AWS_REGION}"
+          echo "Stack:  ${STACK_NAME}"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
           version: 9
           run_install: false
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
-      - name: Install deps
+      - name: Install deps (backend)
+        working-directory: apps/backend
         run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm build
+      - name: Build backend
+        working-directory: apps/backend
+        run: |
+          set -euxo pipefail
+          pnpm build
+          ls -lah dist || true
 
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -50,32 +69,101 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Package (upload dist to S3)
+      - name: AWS CLI info & identity
+        run: |
+          set -euxo pipefail
+          aws --version
+          aws sts get-caller-identity
+
+      # ======= package =======
+      - name: CloudFormation package (to S3)
         working-directory: apps
         run: |
+          set -euxo pipefail
+          # DEBUG フラグで --debug を付与
+          DEBUG_OPT=""
+          if [ "${AWS_DEBUG}" = "1" ]; then DEBUG_OPT="--debug"; fi
+
           aws cloudformation package \
             --template-file backend/template.yaml \
             --s3-bucket "${ARTIFACT_BUCKET}" \
-            --output-template-file packaged.yaml
+            --output-template-file packaged.yaml \
+            $DEBUG_OPT
 
-      - name: Deploy stack
+          echo "== packaged.yaml head =="
+          head -n 60 packaged.yaml || true
+
+      - name: Validate packaged template
+        working-directory: apps
+        run: |
+          set -euxo pipefail
+          DEBUG_OPT=""
+          if [ "${AWS_DEBUG}" = "1" ]; then DEBUG_OPT="--debug"; fi
+
+          aws cloudformation validate-template \
+            --template-body file://packaged.yaml \
+            $DEBUG_OPT
+
+      # ======= deploy =======
+      - name: Deploy stack (with diagnostics on failure)
         id: deploy
         working-directory: apps
         run: |
+          set -euxo pipefail
+          DEBUG_OPT=""
+          if [ "${AWS_DEBUG}" = "1" ]; then DEBUG_OPT="--debug"; fi
+
+          # デプロイ（差分なしでも成功扱い）
+          set +e
           aws cloudformation deploy \
             --template-file packaged.yaml \
             --stack-name "${STACK_NAME}" \
             --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
-            --parameter-overrides ProjectName=giilu-backend
+            --parameter-overrides ProjectName=giilu-backend \
+            --no-fail-on-empty-changeset \
+            $DEBUG_OPT
+          DEPLOY_RC=$?
+          set -e
+
+          if [ "$DEPLOY_RC" -ne 0 ]; then
+            echo "Deploy failed (rc=$DEPLOY_RC). Dumping diagnostics..."
+            echo "---- describe-stack-events ----"
+            aws cloudformation describe-stack-events --stack-name "${STACK_NAME}" --max-items 30 || true
+            echo "---- list-stacks (problem statuses) ----"
+            aws cloudformation list-stacks --stack-status-filter \
+              CREATE_IN_PROGRESS CREATE_FAILED ROLLBACK_IN_PROGRESS ROLLBACK_COMPLETE \
+              UPDATE_IN_PROGRESS UPDATE_ROLLBACK_IN_PROGRESS UPDATE_ROLLBACK_COMPLETE || true
+            echo "---- get-template ----"
+            aws cloudformation get-template --stack-name "${STACK_NAME}" || true
+            exit "$DEPLOY_RC"
+          fi
+
+      - name: Describe stack resources (post-deploy)
+        working-directory: apps
+        run: |
+          set -euxo pipefail
+          aws cloudformation list-stack-resources --stack-name "${STACK_NAME}" || true
+
+      - name: Export API endpoint from Outputs
+        id: outputs
+        working-directory: apps
+        run: |
+          set -euxo pipefail
           URL=$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" \
             --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text)
           echo "api_url=$URL" >> "$GITHUB_OUTPUT"
           echo "API Endpoint: $URL"
 
-      - name: Put API URL to SSM (prod)
+      - name: Put API URL to SSM (for frontend)
+        if: steps.outputs.outputs != ''
         env:
-          API_URL: ${{ steps.deploy.outputs.api_url }}
+          API_URL: ${{ steps.outputs.outputs.api_url }}
         run: |
+          set -euxo pipefail
+          if [ -z "${API_URL:-}" ] || [ "${API_URL}" = "None" ]; then
+            echo "ApiEndpoint not found in Outputs. Skipping SSM put."
+            exit 0
+          fi
           aws ssm put-parameter \
             --name "${PARAM_NAME_PROD}" \
             --type String \
