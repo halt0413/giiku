@@ -1,31 +1,56 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: HTTP API 
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: giilu-backend
+  AllowedOrigin:
+    Type: String
+    Default: https://<YOUR_CLOUDFRONT_DOMAIN> 
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 10
+    MemorySize: 256
+    Architecture: arm64
+    Tracing: Active
+
 Resources:
   HttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
-      StageName: $default
+      StageName: $default       
       CorsConfiguration:
-        AllowOrigins:
-          - https://<YOUR_CLOUDFRONT_DOMAIN>
-        AllowMethods: ['GET', 'POST', 'OPTIONS']
+        AllowOrigins: [ !Ref AllowedOrigin ]
+        AllowMethods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS']
         AllowHeaders: ['*']
 
   ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub $giiku-backend-handler
+      FunctionName: !Sub ${ProjectName}-handler
       Handler: index.handler
-      CodeUri: ../backend/dist
-      Runtime: nodejs20.x
+      CodeUri: ../backend/dist     
       Policies:
         - AWSLambdaBasicExecutionRole
       Events:
         Root:
           Type: HttpApi
           Properties:
+            ApiId: !Ref HttpApi    
             Path: /
             Method: ANY
         Proxy:
           Type: HttpApi
           Properties:
+            ApiId: !Ref HttpApi   
             Path: /{proxy+}
             Method: ANY
+
+Outputs:
+  ApiEndpoint:
+    Description: Invoke URL
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
