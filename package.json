@@ -1,4 +1,16 @@
 {
   "private": true,
-  "workspaces": ["apps/*", "packages/*"]
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.1"
+  },
+  "scripts": {
+    "fmt": "biome format . --write",
+    "lint": "biome check .",
+    "lint:fix": "biome check . --write",
+    "ci:biome": "biome ci ."
+  }
 }
