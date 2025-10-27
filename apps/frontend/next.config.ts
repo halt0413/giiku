@@ -1,10 +1,10 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  output: "export",           //静的サイト出力を有効化
+  output: 'export', //静的サイト出力を有効化
   images: {
-    unoptimized: true,        
+    unoptimized: true,
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig
