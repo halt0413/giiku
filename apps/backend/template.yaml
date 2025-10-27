@@ -15,7 +15,7 @@ Globals:
     Runtime: nodejs20.x
     Timeout: 10
     MemorySize: 256
-    Architecture: [ arm64 ]
+    Architectures: [ arm64 ]
     Tracing: Active
 
 Resources:
