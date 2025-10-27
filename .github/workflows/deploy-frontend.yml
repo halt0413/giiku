@@ -1,4 +1,4 @@
-name: Deploy Frontend 
+name: Deploy Frontend
 
 on:
   push:
@@ -14,6 +14,9 @@ permissions:
 env:
   AWS_REGION: ap-northeast-1
   PARAM_NAME_PROD: /giilu/prod/NEXT_PUBLIC_API_URL
+  AWS_PAGER: ""              
+  AWS_MAX_ATTEMPTS: "3"
+  AWS_RETRY_MODE: standard
 
 jobs:
   deploy:
@@ -45,11 +48,36 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Read API URL from SSM (prod)
+      - name: Who am I (debug)
+        run: |
+          aws --version
+          aws sts get-caller-identity
+
+      - name: Read API URL from SSM (prod, fail clearly)
         id: ssm
         run: |
-          VALUE=$(aws ssm get-parameter --name "${PARAM_NAME_PROD}" --query "Parameter.Value" --output text)
+          set -e
+          VALUE=$(aws ssm get-parameter \
+            --name "${PARAM_NAME_PROD}" \
+            --region "${AWS_REGION}" \
+            --query "Parameter.Value" --output text 2>/tmp/err || true)
+
+          if [ -z "$VALUE" ] || [ "$VALUE" = "None" ]; then
+            echo "❌ SSM parameter not found: ${PARAM_NAME_PROD}"
+            echo "Tips: バックエンドのデプロイ後に ApiEndpoint を SSM に保存してください。"
+            echo "stderr:"; cat /tmp/err || true
+            exit 1
+          fi
+
+          # 軽いバリデーション
+          case "$VALUE" in
+            https://*.execute-api.*.amazonaws.com*) ;;
+            https://*) echo "⚠️ 非API Gateway URLですが継続: $VALUE" ;;
+            *) echo "❌ URLが不正: $VALUE"; exit 1 ;;
+          esac
+
           echo "api_url=$VALUE" >> "$GITHUB_OUTPUT"
+          echo "Resolved NEXT_PUBLIC_API_URL: $VALUE"
 
       - name: Build (static export)
         env:
@@ -59,15 +87,22 @@ jobs:
           set -euxo pipefail
           pnpm build
           test -d out
+          # 便利ログ
+          echo "Built with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
 
       - name: Sync to S3 (prod)
         env:
           S3_BUCKET_PROD: ${{ secrets.S3_BUCKET_PROD }}
         run: |
-          aws s3 sync ./out "s3://$S3_BUCKET_PROD" --delete
+          set -euxo pipefail
+          # そのまま全体sync。必要に応じて index.html だけ短キャッシュに分ける運用も可
+          aws s3 sync ./out "s3://${S3_BUCKET_PROD}" --delete
 
       - name: CloudFront Invalidation (prod)
         env:
           CF_DISTRIBUTION_ID_PROD: ${{ secrets.CF_DISTRIBUTION_ID_PROD }}
         run: |
-          aws cloudfront create-invalidation --distribution-id "$CF_DISTRIBUTION_ID_PROD" --paths "/*"
+          set -euxo pipefail
+          aws cloudfront create-invalidation \
+            --distribution-id "${CF_DISTRIBUTION_ID_PROD}" \
+            --paths "/*"
