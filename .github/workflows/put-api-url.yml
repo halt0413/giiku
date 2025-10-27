@@ -1,0 +1,61 @@
+name: Put API URL to SSM (manual)
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+  STACK_NAME: giilu-backend-httpapi
+  PARAM_NAME_PROD: /giilu/prod/NEXT_PUBLIC_API_URL
+
+jobs:
+  put:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve API URL (Outputs or ApiId)
+        id: resolve
+        run: |
+          set -e
+          URL=$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_NAME}" \
+            --region "${AWS_REGION}" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" \
+            --output text)
+
+          if [ -z "$URL" ] || [ "$URL" = "None" ]; then
+            API_ID=$(aws cloudformation list-stack-resources \
+              --stack-name "${STACK_NAME}" \
+              --region "${AWS_REGION}" \
+              --query "StackResourceSummaries[?ResourceType=='AWS::ApiGatewayV2::Api'].PhysicalResourceId" \
+              --output text)
+            if [ -z "$API_ID" ] || [ "$API_ID" = "None" ]; then
+              echo "Failed to get ApiId from stack. Abort."
+              exit 1
+            fi
+            URL="https://${API_ID}.execute-api.${AWS_REGION}.amazonaws.com"
+          fi
+
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+          echo "Resolved URL: $URL"
+
+      - name: Put to SSM
+        run: |
+          aws ssm put-parameter \
+            --name "${PARAM_NAME_PROD}" \
+            --type String \
+            --overwrite \
+            --value "${{ steps.resolve.outputs.url }}" \
+            --region "${AWS_REGION}"
+          aws ssm get-parameter --name "${PARAM_NAME_PROD}" --region "${AWS_REGION}" \
+            --query "Parameter.Value" --output text
