@@ -92,7 +92,7 @@ jobs:
 
       - name: Sync to S3 (prod)
         env:
-          S3_BUCKET_PROD: ${{ secrets.S3_BUCKET_PROD }}
+          S3_BUCKET_PROD: ${{ secrets.AWS_FRONTEND_BUCKET }}
         run: |
           set -euxo pipefail
           # そのまま全体sync。必要に応じて index.html だけ短キャッシュに分ける運用も可
