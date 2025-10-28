@@ -6,6 +6,11 @@ on:
     paths:
       - "apps/frontend/**"
       - ".github/workflows/deploy-frontend.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "apps/frontend/**"
+      - ".github/workflows/deploy-frontend.yml"
 
 permissions:
   id-token: write
@@ -14,33 +19,65 @@ permissions:
 env:
   AWS_REGION: ap-northeast-1
   PARAM_NAME_PROD: /giilu/prod/NEXT_PUBLIC_API_URL
-  AWS_PAGER: ""              
+  AWS_PAGER: ""
   AWS_MAX_ATTEMPTS: "3"
   AWS_RETRY_MODE: standard
 
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  deploy:
+  biome:
+    name: Lint & Format (Biome)
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
         working-directory: apps/frontend
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
-
+        with: { version: 9, run_install: false }
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-
       - name: Install deps
         run: pnpm install --frozen-lockfile
+      - name: Run Biome
+        run: pnpm biome check
+
+  deploy_preview:
+    name: Deploy Preview (PR)
+    needs: biome
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    env:
+      AWS_EC2_METADATA_DISABLED: "true"
+      PREVIEW_PREFIX: previews/pr-${{ github.event.pull_request.number }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9, run_install: false }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Sanitize AWS env (avoid container-role)
+        run: |
+          set -euo pipefail
+          unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE
+          unset AWS_CONTAINER_CREDENTIALS_FULL_URI AWS_CONTAINER_AUTHORIZATION_TOKEN AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
+          unset AWS_WEB_IDENTITY_TOKEN_FILE AWS_ROLE_ARN
+          echo "Sanitized AWS_* environment variables."
 
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -49,33 +86,112 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Who am I (debug)
-        run: |
-          aws --version
-          aws sts get-caller-identity
+        run: aws sts get-caller-identity
 
-      - name: Read API URL from SSM (prod, fail clearly)
+      - name: Read API URL from SSM
         id: ssm
         run: |
-          set -e
+          set -euo pipefail
+          URL=$(aws ssm get-parameter \
+            --name "${PARAM_NAME_PROD}" \
+            --region "${AWS_REGION}" \
+            --query "Parameter.Value" --output text)
+          [ -z "$URL" ] && { echo "SSM param empty"; exit 1; }
+          echo "api_url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Build (static export)
+        env:
+          NEXT_PUBLIC_API_URL: ${{ steps.ssm.outputs.api_url }}
+          NODE_ENV: production
+        run: |
+          set -euxo pipefail
+          pnpm build
+          test -d out
+          echo "Built with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
+
+      - name: Ensure bucket exists
+        env:
+          BUCKET: ${{ secrets.AWS_FRONTEND_BUCKET }}
+        run: |
+          set -euo pipefail
+          aws s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1 || {
+            echo "Bucket not found: $BUCKET"; exit 1;
+          }
+
+      - name: Upload preview (long-cache assets)
+        env:
+          BUCKET: ${{ secrets.AWS_FRONTEND_BUCKET }}
+        run: |
+          set -euxo pipefail
+          aws s3 sync ./out "s3://$BUCKET/${{ env.PREVIEW_PREFIX }}" \
+            --delete \
+            --exclude "*" \
+            --include "_next/static/*" \
+            --include "assets/*" \
+            --cache-control "public,max-age=31536000,immutable"
+
+      - name: Upload preview (html no-cache)
+        env:
+          BUCKET: ${{ secrets.AWS_FRONTEND_BUCKET }}
+        run: |
+          set -euxo pipefail
+          aws s3 sync ./out "s3://$BUCKET/${{ env.PREVIEW_PREFIX }}" \
+            --delete \
+            --exclude "_next/*" \
+            --exclude "assets/*" \
+            --cache-control "no-cache"
+
+      - name: Preview URL
+        run: echo "Preview path: s3://${{ secrets.AWS_FRONTEND_BUCKET }}/${{ env.PREVIEW_PREFIX }}/index.html"
+
+  deploy_prod:
+    name: Deploy Production (main)
+    needs: biome
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    env:
+      AWS_EC2_METADATA_DISABLED: "true"
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9, run_install: false }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Sanitize AWS env (avoid container-role)
+        run: |
+          set -euo pipefail
+          unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE
+          unset AWS_CONTAINER_CREDENTIALS_FULL_URI AWS_CONTAINER_AUTHORIZATION_TOKEN AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
+          unset AWS_WEB_IDENTITY_TOKEN_FILE AWS_ROLE_ARN
+          echo "Sanitized AWS_* environment variables."
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Who am I (debug)
+        run: aws sts get-caller-identity
+
+      - name: Read API URL from SSM (prod)
+        id: ssm
+        run: |
+          set -euo pipefail
           VALUE=$(aws ssm get-parameter \
             --name "${PARAM_NAME_PROD}" \
             --region "${AWS_REGION}" \
-            --query "Parameter.Value" --output text 2>/tmp/err || true)
-
-          if [ -z "$VALUE" ] || [ "$VALUE" = "None" ]; then
-            echo "❌ SSM parameter not found: ${PARAM_NAME_PROD}"
-            echo "Tips: バックエンドのデプロイ後に ApiEndpoint を SSM に保存してください。"
-            echo "stderr:"; cat /tmp/err || true
-            exit 1
-          fi
-
-          # 軽いバリデーション
-          case "$VALUE" in
-            https://*.execute-api.*.amazonaws.com*) ;;
-            https://*) echo "⚠️ 非API Gateway URLですが継続: $VALUE" ;;
-            *) echo "❌ URLが不正: $VALUE"; exit 1 ;;
-          esac
-
+            --query "Parameter.Value" --output text)
+          [ -z "$VALUE" ] && { echo "SSM param empty"; exit 1; }
           echo "api_url=$VALUE" >> "$GITHUB_OUTPUT"
           echo "Resolved NEXT_PUBLIC_API_URL: $VALUE"
 
@@ -87,7 +203,6 @@ jobs:
           set -euxo pipefail
           pnpm build
           test -d out
-          # 便利ログ
           echo "Built with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
 
       - name: Sync to S3 (prod)
@@ -95,7 +210,6 @@ jobs:
           S3_BUCKET_PROD: ${{ secrets.AWS_FRONTEND_BUCKET }}
         run: |
           set -euxo pipefail
-          # そのまま全体sync。必要に応じて index.html だけ短キャッシュに分ける運用も可
           aws s3 sync ./out "s3://${S3_BUCKET_PROD}" --delete
 
       - name: CloudFront Invalidation (prod)

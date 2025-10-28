@@ -6,6 +6,11 @@ on:
     paths:
       - "apps/backend/**"
       - ".github/workflows/deploy-backend.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "apps/backend/**"
+      - ".github/workflows/deploy-backend.yml"
 
 permissions:
   id-token: write
@@ -18,14 +23,44 @@ env:
   PARAM_NAME_PROD: /giilu/prod/NEXT_PUBLIC_API_URL
   CLOUDFRONT_ORIGIN: https://ds1odkxad3v10.cloudfront.net
 
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  deploy:
+  biome:
+    name: Lint & Format (Biome)
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
         working-directory: apps/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Run Biome
+        run: pnpm biome check
 
+  deploy:
+    name: Deploy Backend (main)
+    needs: biome
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    env:
+      AWS_EC2_METADATA_DISABLED: "true"
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/backend
     steps:
       - uses: actions/checkout@v4
 
@@ -45,11 +80,22 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Sanitize AWS env (avoid container-role)
+        run: |
+          set -euo pipefail
+          unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE
+          unset AWS_CONTAINER_CREDENTIALS_FULL_URI AWS_CONTAINER_AUTHORIZATION_TOKEN AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
+          unset AWS_WEB_IDENTITY_TOKEN_FILE AWS_ROLE_ARN
+          echo "Sanitized AWS_* environment variables."
+
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Who am I (debug)
+        run: aws sts get-caller-identity
 
       - name: Package (upload dist to S3)
         working-directory: apps
@@ -118,7 +164,6 @@ jobs:
           fi
 
           echo "api_url=${URL}" >> "$GITHUB_OUTPUT"
-          echo "API Endpoint: ${URL}"
 
       - name: Put API URL to SSM (prod) and verify
         env:
@@ -136,4 +181,3 @@ jobs:
             --region "${AWS_REGION}" \
             --name "${PARAM_NAME_PROD}" \
             --query 'Parameter.Value' --output text)
-          echo "Saved to SSM: ${got}"
