@@ -16,6 +16,7 @@ env:
   STACK_NAME: giilu-backend-httpapi
   ARTIFACT_BUCKET: ${{ secrets.AWS_ARTIFACT_BUCKET }}
   PARAM_NAME_PROD: /giilu/prod/NEXT_PUBLIC_API_URL
+  # CLOUDFRONT_ORIGIN: https://app.example.com
 
 jobs:
   deploy:
@@ -53,32 +54,86 @@ jobs:
       - name: Package (upload dist to S3)
         working-directory: apps
         run: |
+          set -euo pipefail
           aws cloudformation package \
+            --region "${AWS_REGION}" \
             --template-file backend/template.yaml \
             --s3-bucket "${ARTIFACT_BUCKET}" \
             --output-template-file packaged.yaml
 
-      - name: Deploy stack
-        id: deploy
+      - name: Validate packaged template
         working-directory: apps
         run: |
-          aws cloudformation deploy \
-            --template-file packaged.yaml \
-            --stack-name "${STACK_NAME}" \
-            --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
-            --parameter-overrides ProjectName=giilu-backend
-          URL=$(aws cloudformation describe-stacks --stack-name "${STACK_NAME}" \
-            --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text)
-          echo "api_url=$URL" >> "$GITHUB_OUTPUT"
-          echo "API Endpoint: $URL"
+          set -euo pipefail
+          aws cloudformation validate-template \
+            --region "${AWS_REGION}" \
+            --template-body file://packaged.yaml
 
-      - name: Put API URL to SSM (prod)
+      - name: Deploy stack (with diagnostics)
+        id: deploy
+        working-directory: apps
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          STACK_NAME: ${{ env.STACK_NAME }}
+        run: |
+          set -euo pipefail
+
+          deploy() {
+            aws cloudformation deploy \
+              --region "${AWS_REGION}" \
+              --template-file packaged.yaml \
+              --stack-name "${STACK_NAME}" \
+              --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+              --parameter-overrides \
+                ProjectName=giilu-backend \
+                AllowedOrigin="${CLOUDFRONT_ORIGIN}"
+          }
+
+          if ! deploy; then
+            echo "=== CFN EVENTS (latest) ==="
+            aws cloudformation describe-stack-events \
+              --region "${AWS_REGION}" \
+              --stack-name "${STACK_NAME}" \
+              --query "StackEvents[].{Time:Timestamp,LogicalId:LogicalResourceId,Status:ResourceStatus,Reason:ResourceStatusReason,Type:ResourceType}" \
+              --output table || true
+
+            echo "=== CFN STACK STATUS ==="
+            aws cloudformation describe-stacks \
+              --region "${AWS_REGION}" \
+              --stack-name "${STACK_NAME}" \
+              --query "Stacks[0].{Status:StackStatus,Reason:StackStatusReason}" \
+              --output table || true
+            exit 1
+          fi
+
+          URL=$(aws cloudformation describe-stacks \
+            --region "${AWS_REGION}" \
+            --stack-name "${STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" \
+            --output text)
+
+          if [ -z "${URL}" ] || [ "${URL}" = "None" ]; then
+            echo "ApiEndpoint Output が見つからない/空です。template.yaml の Outputs を確認してください。"
+            exit 1
+          fi
+
+          echo "api_url=${URL}" >> "$GITHUB_OUTPUT"
+          echo "API Endpoint: ${URL}"
+
+      - name: Put API URL to SSM (prod) and verify
         env:
           API_URL: ${{ steps.deploy.outputs.api_url }}
         run: |
+          set -euo pipefail
           aws ssm put-parameter \
+            --region "${AWS_REGION}" \
             --name "${PARAM_NAME_PROD}" \
             --type String \
             --overwrite \
             --value "${API_URL}"
-          echo "Saved ${API_URL} to ${PARAM_NAME_PROD}"
+
+          got=$(aws ssm get-parameter \
+            --region "${AWS_REGION}" \
+            --name "${PARAM_NAME_PROD}" \
+            --query 'Parameter.Value' --output text)
+          echo "Saved to SSM: ${got}"
