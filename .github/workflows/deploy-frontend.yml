@@ -38,7 +38,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with: { version: 9, run_install: false }
+        with:
+          version: 9
+          run_install: false
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -55,21 +57,30 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_EC2_METADATA_DISABLED: "true"
-      PREVIEW_PREFIX: previews/pr-${{ github.event.pull_request.number }}
     defaults:
       run:
         shell: bash
         working-directory: apps/frontend
     steps:
       - uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
-        with: { version: 9, run_install: false }
+        with:
+          version: 9
+          run_install: false
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
+
       - name: Install deps
         run: pnpm install --frozen-lockfile
+
+      - name: Inject runtime env (bucket, prefix)
+        run: |
+          echo "BUCKET=${{ secrets.AWS_FRONTEND_BUCKET }}" >> "$GITHUB_ENV"
+          echo "PREVIEW_PREFIX=previews/pr-${{ github.event.pull_request.number }}" >> "$GITHUB_ENV"
 
       - name: Sanitize AWS env (avoid container-role)
         run: |
@@ -96,7 +107,10 @@ jobs:
             --name "${PARAM_NAME_PROD}" \
             --region "${AWS_REGION}" \
             --query "Parameter.Value" --output text)
-          [ -z "$URL" ] && { echo "SSM param empty"; exit 1; }
+          if [ -z "$URL" ] || [ "$URL" = "None" ]; then
+            echo "SSM param empty"
+            exit 1
+          fi
           echo "api_url=$URL" >> "$GITHUB_OUTPUT"
 
       - name: Build (static export)
@@ -110,20 +124,17 @@ jobs:
           echo "Built with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
 
       - name: Ensure bucket exists
-        env:
-          BUCKET: ${{ secrets.AWS_FRONTEND_BUCKET }}
         run: |
           set -euo pipefail
           aws s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1 || {
-            echo "Bucket not found: $BUCKET"; exit 1;
+            echo "Bucket not found: $BUCKET"
+            exit 1
           }
 
       - name: Upload preview (long-cache assets)
-        env:
-          BUCKET: ${{ secrets.AWS_FRONTEND_BUCKET }}
         run: |
           set -euxo pipefail
-          aws s3 sync ./out "s3://$BUCKET/${{ env.PREVIEW_PREFIX }}" \
+          aws s3 sync "./out" "s3://$BUCKET/$PREVIEW_PREFIX" \
             --delete \
             --exclude "*" \
             --include "_next/static/*" \
@@ -131,18 +142,17 @@ jobs:
             --cache-control "public,max-age=31536000,immutable"
 
       - name: Upload preview (html no-cache)
-        env:
-          BUCKET: ${{ secrets.AWS_FRONTEND_BUCKET }}
         run: |
           set -euxo pipefail
-          aws s3 sync ./out "s3://$BUCKET/${{ env.PREVIEW_PREFIX }}" \
+          aws s3 sync "./out" "s3://$BUCKET/$PREVIEW_PREFIX" \
             --delete \
             --exclude "_next/*" \
             --exclude "assets/*" \
             --cache-control "no-cache"
 
       - name: Preview URL
-        run: echo "Preview path: s3://${{ secrets.AWS_FRONTEND_BUCKET }}/${{ env.PREVIEW_PREFIX }}/index.html"
+        run: |
+          echo "Preview path: s3://$BUCKET/$PREVIEW_PREFIX/index.html"
 
   deploy_prod:
     name: Deploy Production (main)
@@ -157,14 +167,23 @@ jobs:
         working-directory: apps/frontend
     steps:
       - uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
-        with: { version: 9, run_install: false }
+        with:
+          version: 9
+          run_install: false
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
+
       - name: Install deps
         run: pnpm install --frozen-lockfile
+
+      - name: Inject runtime env (bucket)
+        run: |
+          echo "BUCKET=${{ secrets.AWS_FRONTEND_BUCKET }}" >> "$GITHUB_ENV"
 
       - name: Sanitize AWS env (avoid container-role)
         run: |
@@ -191,7 +210,10 @@ jobs:
             --name "${PARAM_NAME_PROD}" \
             --region "${AWS_REGION}" \
             --query "Parameter.Value" --output text)
-          [ -z "$VALUE" ] && { echo "SSM param empty"; exit 1; }
+          if [ -z "$VALUE" ] || [ "$VALUE" = "None" ]; then
+            echo "SSM param empty"
+            exit 1
+          fi
           echo "api_url=$VALUE" >> "$GITHUB_OUTPUT"
           echo "Resolved NEXT_PUBLIC_API_URL: $VALUE"
 
@@ -206,11 +228,9 @@ jobs:
           echo "Built with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
 
       - name: Sync to S3 (prod)
-        env:
-          S3_BUCKET_PROD: ${{ secrets.AWS_FRONTEND_BUCKET }}
         run: |
           set -euxo pipefail
-          aws s3 sync ./out "s3://${S3_BUCKET_PROD}" --delete
+          aws s3 sync "./out" "s3://$BUCKET" --delete
 
       - name: CloudFront Invalidation (prod)
         env:
