@@ -51,10 +51,12 @@ jobs:
         run: pnpm biome check
 
   deploy:
-    name: Deploy Backend
+    name: Deploy Backend (main)
     needs: biome
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    env:
+      AWS_EC2_METADATA_DISABLED: "true"
     defaults:
       run:
         shell: bash
@@ -78,11 +80,22 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Sanitize AWS env (avoid container-role)
+        run: |
+          set -euo pipefail
+          unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE
+          unset AWS_CONTAINER_CREDENTIALS_FULL_URI AWS_CONTAINER_AUTHORIZATION_TOKEN AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
+          unset AWS_WEB_IDENTITY_TOKEN_FILE AWS_ROLE_ARN
+          echo "Sanitized AWS_* environment variables."
+
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Who am I (debug)
+        run: aws sts get-caller-identity
 
       - name: Package (upload dist to S3)
         working-directory: apps
@@ -111,14 +124,33 @@ jobs:
         run: |
           set -euo pipefail
 
-          aws cloudformation deploy \
-            --region "${AWS_REGION}" \
-            --template-file packaged.yaml \
-            --stack-name "${STACK_NAME}" \
-            --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
-            --parameter-overrides \
-              ProjectName=giilu-backend \
-              AllowedOrigin="${CLOUDFRONT_ORIGIN}"
+          deploy() {
+            aws cloudformation deploy \
+              --region "${AWS_REGION}" \
+              --template-file packaged.yaml \
+              --stack-name "${STACK_NAME}" \
+              --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+              --parameter-overrides \
+                ProjectName=giilu-backend \
+                AllowedOrigin="${CLOUDFRONT_ORIGIN}"
+          }
+
+          if ! deploy; then
+            echo "=== CFN EVENTS (latest) ==="
+            aws cloudformation describe-stack-events \
+              --region "${AWS_REGION}" \
+              --stack-name "${STACK_NAME}" \
+              --query "StackEvents[].{Time:Timestamp,LogicalId:LogicalResourceId,Status:ResourceStatus,Reason:ResourceStatusReason,Type:ResourceType}" \
+              --output table || true
+
+            echo "=== CFN STACK STATUS ==="
+            aws cloudformation describe-stacks \
+              --region "${AWS_REGION}" \
+              --stack-name "${STACK_NAME}" \
+              --query "Stacks[0].{Status:StackStatus,Reason:StackStatusReason}" \
+              --output table || true
+            exit 1
+          fi
 
           URL=$(aws cloudformation describe-stacks \
             --region "${AWS_REGION}" \
@@ -127,11 +159,11 @@ jobs:
             --output text)
 
           if [ -z "${URL}" ] || [ "${URL}" = "None" ]; then
+            echo "ApiEndpoint Output が見つからない/空です。template.yaml の Outputs を確認してください。"
             exit 1
           fi
 
           echo "api_url=${URL}" >> "$GITHUB_OUTPUT"
-          echo "API Endpoint: ${URL}"
 
       - name: Put API URL to SSM (prod) and verify
         env:
@@ -149,4 +181,3 @@ jobs:
             --region "${AWS_REGION}" \
             --name "${PARAM_NAME_PROD}" \
             --query 'Parameter.Value' --output text)
-          echo "Saved to SSM: ${got}"
