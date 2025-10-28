@@ -16,7 +16,7 @@ env:
   STACK_NAME: giilu-backend-httpapi
   ARTIFACT_BUCKET: ${{ secrets.AWS_ARTIFACT_BUCKET }}
   PARAM_NAME_PROD: /giilu/prod/NEXT_PUBLIC_API_URL
-  # CLOUDFRONT_ORIGIN: https://app.example.com
+  CLOUDFRONT_ORIGIN: https://ds1odkxad3v10.cloudfront.net/
 
 jobs:
   deploy:
