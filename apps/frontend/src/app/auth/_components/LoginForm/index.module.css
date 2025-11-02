@@ -1,0 +1,44 @@
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.siteTitle {
+  font-size: 44px;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #5b5b5b;
+  text-align: center;
+}
+
+.label {
+  color: #6b6b6b;
+  font-weight: 600;
+  font-size: 14px;
+  margin: 12px 0 8px 6px;
+}
+
+.pill {
+  height: 52px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 1px solid #e6e6e6;
+  padding: 0 18px;
+  outline: none;
+  box-shadow: none;
+}
+
+.loginBtn {
+  margin-top: 20px;
+  height: 56px;
+  border-radius: 9999px;
+  background: #79b1c0;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border: none;
+}
+
+.loginBtn:hover {
+  background: #6aa6b7;
+}

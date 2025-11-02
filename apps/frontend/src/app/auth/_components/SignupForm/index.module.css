@@ -1,0 +1,34 @@
+.form {
+  display: flex;
+  flex-direction: column;
+}
+.siteTitle {
+  font-size: 44px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: #5a5a5a;
+  text-align: center;
+}
+.label {
+  color: #6b6b6b;
+  font-weight: 600;
+  margin-left: 4px;
+  margin-bottom: 6px;
+}
+.pill {
+  height: 48px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  padding: 0 16px;
+}
+.signupBtn {
+  height: 52px;
+  border-radius: 9999px;
+  background: #79b1c0;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.signupBtn:hover {
+  background: #6aa6b7;
+}

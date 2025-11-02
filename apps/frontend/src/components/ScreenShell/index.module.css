@@ -1,0 +1,78 @@
+:root {
+  --gap: clamp(12px, 3vw, 24px);
+  --radius: 16px;
+  --panel: #151a24;
+  --panel-weak: #1a1f2b;
+  --primary: #2b89ff;
+}
+
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100%;
+  gap: var(--gap);
+  padding: var(--gap);
+}
+
+.header,
+.footer {
+  border-radius: var(--radius);
+  background: var(--panel-weak);
+  padding: clamp(10px, 2.5vw, 16px);
+}
+
+.h1 {
+  margin: 0;
+  font-size: clamp(18px, 2.2vw, 24px);
+  font-weight: 700;
+}
+
+.main {
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: clamp(12px, 3vw, 20px);
+  overflow: auto;
+}
+
+.tabbar {
+  position: sticky;
+  bottom: 0;
+  margin-top: var(--gap);
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: rgba(10, 12, 18, 0.9);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: grid;
+  grid-auto-flow: column;
+  gap: 8px;
+  border-radius: 18px;
+}
+
+.tabItem {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  padding: 10px 8px;
+  border-radius: 12px;
+}
+
+.btnPrimary {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  padding: clamp(10px, 2.5vw, 14px) clamp(14px, 4vw, 20px);
+  font-weight: 600;
+}
+
+@media (max-width: 360px) {
+  .h1 {
+    font-size: clamp(16px, 4vw, 20px);
+  }
+  .app {
+    gap: 10px;
+    padding: 10px;
+  }
+}
