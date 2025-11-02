@@ -1,9 +1,11 @@
 'use client'
 import { Alert, Button, PasswordInput, Space, Stack, TextInput, Title } from '@mantine/core'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import styles from './index.module.css'
 
 export default function LoginForm() {
+  const router = useRouter()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -57,6 +59,15 @@ export default function LoginForm() {
           fullWidth
         >
           ログイン
+        </Button>
+        <Button
+          onClick={() => router.push('/auth/signup')}
+          variant="link"
+          color="gray"
+          size="sm"
+          fullWidth
+        >
+          signupはこちら
         </Button>
       </Stack>
     </form>
