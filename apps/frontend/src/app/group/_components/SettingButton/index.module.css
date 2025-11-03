@@ -1,6 +1,6 @@
 .container {
   display: flex;
-  justify-content: flex-end; 
+  justify-content: flex-end;
   align-items: center;
   width: 100%;
 }
@@ -8,11 +8,8 @@
 .icon {
   cursor: pointer;
   transition: transform 0.2s ease;
-  
 }
 
 .icon:hover {
   transform: scale(1.1);
 }
-
-

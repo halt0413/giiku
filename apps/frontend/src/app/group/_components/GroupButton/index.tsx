@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import ActionButton from '@/components/ActionButton'
-import  styles  from './index.module.css'
+import styles from './index.module.css'
 
 export default function GroupButton() {
   return (
