@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { UserModule } from './user/user.module';
 import { ConfigModule } from '@nestjs/config';
-import { DrizzleService } from './db/drizzle.service';
 import { AuthModule } from './auth/auth.module';
+import { DrizzleModule } from './db/drizzle.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -12,7 +12,7 @@ import { AuthModule } from './auth/auth.module';
       envFilePath: '.env',
     }),
     AuthModule,
+    DrizzleModule,
   ],
-  providers: [DrizzleService],
 })
 export class AppModule {}
