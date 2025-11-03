@@ -1,13 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { eq } from 'drizzle-orm';
 import { DrizzleService } from 'src/db/drizzle.service';
 import { users } from '../db/schema';
-import { eq } from 'drizzle-orm';
-
+import type { CreateUserDto } from './dto/create-user.dto';
+import type { UpdateUserDto } from './dto/update-user.dto';
 @Injectable()
 export class UserService {
-
   constructor(private readonly drizzle: DrizzleService) {}
 
   create(createUserDto: CreateUserDto) {
@@ -18,8 +16,9 @@ export class UserService {
     return await this.drizzle.db.select().from(users);
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findOne(id: string) {
+    const user = await this.drizzle.db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   update(id: number, updateUserDto: UpdateUserDto) {
