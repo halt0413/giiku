@@ -69,6 +69,15 @@ export default function LoginForm() {
         >
           signupはこちら
         </Button>
+        <Button
+          onClick={() => router.push('/group/groupactions')}
+          variant="link"
+          color="gray"
+          size="sm"
+          fullWidth
+        >
+          group
+        </Button>
       </Stack>
     </form>
   )

@@ -1,0 +1,38 @@
+.button {
+  width: 92%;
+  max-width: 420px;
+  height: 100px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: none;
+  box-shadow: 0 6px 18px rgba(16, 24, 32, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button:active {
+  transform: scale(0.98);
+  box-shadow: 0 3px 10px rgba(16, 24, 32, 0.1);
+}
+
+.primary {
+  background-color: #ffffff;
+}
+
+.secondary {
+  background-color: #f9f9f9;
+}
+
+@media (max-width: 420px) {
+  .button {
+    height: 90px;
+    border-radius: 16px;
+  }
+}
