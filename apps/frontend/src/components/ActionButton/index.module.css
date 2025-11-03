@@ -1,11 +1,11 @@
 .button {
-  width: 92%;
-  max-width: 420px;
-  height: 100px;
+  width: 96%;
+  max-width: 520px;
+  height: 120px;
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: 28px;
   border: none;
-  box-shadow: 0 6px 18px rgba(16, 24, 32, 0.08);
+  box-shadow: 0 8px 22px rgba(16, 24, 32, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18,8 +18,8 @@
 }
 
 .button:active {
-  transform: scale(0.98);
-  box-shadow: 0 3px 10px rgba(16, 24, 32, 0.1);
+  transform: scale(0.97);
+  box-shadow: 0 4px 12px rgba(16, 24, 32, 0.12);
 }
 
 .primary {
@@ -32,7 +32,7 @@
 
 @media (max-width: 420px) {
   .button {
-    height: 90px;
-    border-radius: 16px;
+    height: 110px;
+    border-radius: 22px;
   }
 }

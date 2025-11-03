@@ -2,8 +2,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
-  padding-top: 48px;
+  gap: 32px;
+  padding-top: 90px;
 }
 
 .inner {
@@ -14,7 +14,7 @@
 }
 
 .text {
-  font-size: 18px;
+  font-size: 1.4rem;
   font-weight: 600;
   color: #333;
 }
