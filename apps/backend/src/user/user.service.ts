@@ -3,7 +3,6 @@ import { eq } from 'drizzle-orm';
 import { DrizzleService } from 'src/db/drizzle.service';
 import { users } from '../db/schema';
 import type { CreateUserDto } from './dto/create-user.dto';
-import type { UpdateUserDto } from './dto/update-user.dto';
 @Injectable()
 export class UserService {
   constructor(private readonly drizzle: DrizzleService) {}
@@ -21,11 +20,10 @@ export class UserService {
     return user;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
-  }
+  async setting(req , name: string) {
+    const id = req.user.id;
+    await this.drizzle.db.update(users).set(name).where(eq(users.id, id));
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+    return await this.findOne(id)
   }
 }
