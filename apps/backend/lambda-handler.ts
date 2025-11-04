@@ -6,7 +6,7 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import type { APIGatewayProxyEventV2, Context, Handler, Callback } from 'aws-lambda';
 import serverlessExpress from '@vendia/serverless-express';
 
-import { AppModule } from './app.module';
+import { AppModule } from './src/app.module';
 
 let cachedServer: ((event: any, context: Context, callback?: Callback<unknown>) => void | Promise<any>) | null = null;
 
