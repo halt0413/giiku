@@ -1,29 +1,18 @@
 import 'dotenv/config';
+
+import express, { Express } from 'express';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import { ValidationPipe } from '@nestjs/common';
-import express from 'express';
-import type {
-  APIGatewayProxyEventV2,
-  Context,
-  Callback,
-  Handler,
-} from 'aws-lambda';
+import type { APIGatewayProxyEventV2, Context, Handler, Callback } from 'aws-lambda';
 import serverlessExpress from '@vendia/serverless-express';
+
 import { AppModule } from './app.module';
 
-// Promise だけを返すように統一
-type ServerHandler = (
-  event: APIGatewayProxyEventV2,
-  context: Context,
-  callback?: Callback<unknown>,
-) => Promise<unknown>;
+let cachedServer: ((event: any, context: Context, callback?: Callback<unknown>) => void | Promise<any>) | null = null;
 
-// キャッシュ用サーバ
-let server: ServerHandler | null = null;
-
-async function bootstrap(): Promise<void> {
-  const expressApp = express();
+async function bootstrap() {
+  const expressApp: Express = express();
 
   const app = await NestFactory.create(
     AppModule,
@@ -34,8 +23,7 @@ async function bootstrap(): Promise<void> {
   app.useGlobalPipes(new ValidationPipe());
   await app.init();
 
-  // @vendia/serverless-express は非同期関数を返すため Promise に統一
-  server = serverlessExpress({ app: expressApp }) as unknown as ServerHandler;
+  cachedServer = serverlessExpress({ app: expressApp });
 }
 
 export const handler: Handler = async (
@@ -43,14 +31,9 @@ export const handler: Handler = async (
   context: Context,
   callback?: Callback<unknown>,
 ) => {
-  if (!server) {
+  if (!cachedServer) {
     await bootstrap();
   }
 
-  const handlerFn = server;
-  if (handlerFn === null) {
-    throw new Error('Server initialization failed');
-  }
-
-  return handlerFn(event, context, callback);
+  return cachedServer!(event, context, callback);
 };
