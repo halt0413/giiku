@@ -1,5 +1,4 @@
 import 'dotenv/config';
-
 import express, { Express } from 'express';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
