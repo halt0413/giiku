@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtService } from '@nestjs/jwt';
 import { DrizzleModule } from 'src/db/drizzle.module';
 import { UserModule } from 'src/user/user.module';
 import { AuthController } from './auth.controller';
@@ -17,5 +17,6 @@ import { JwtStrategy } from './jwt.strategy';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
+  exports: [JwtModule, JwtStrategy]
 })
 export class AuthModule {}

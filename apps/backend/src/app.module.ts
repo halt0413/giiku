@@ -7,11 +7,11 @@ import { GroupModule } from './group/group.module';
 
 @Module({
   imports: [
-    UserModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
+    UserModule,
     AuthModule,
     DrizzleModule,
     GroupModule,

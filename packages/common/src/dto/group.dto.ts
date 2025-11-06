@@ -1,3 +1,5 @@
 export interface GroupDto {
-    id : string
+    id : string;
+    user?: string;
+    members?: string[];
 }
