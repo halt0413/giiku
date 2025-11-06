@@ -2,7 +2,7 @@ name: Build & Deploy Backend (Image)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
       - "apps/backend/**"
       - ".github/workflows/deploy-backend-image.yml"
@@ -14,7 +14,7 @@ permissions:
 
 env:
   AWS_REGION: ap-northeast-1
-  REPO: ${{ secrets.ECR_REPOSITORY }}
+  REPO: ${{ secrets.ECR_REPOSITORY }}      
   IMAGE_TAG: ${{ github.sha }}
   DOCKERFILE_PATH: ./apps/backend/Dockerfile
   CONTEXT: .
@@ -27,6 +27,10 @@ jobs:
   build-push:
     name: Build (linux/amd64) & Push to ECR
     runs-on: ubuntu-latest
+
+    outputs:
+      image_uri: ${{ steps.image.outputs.image_uri }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,6 +53,7 @@ jobs:
           region: ${{ env.AWS_REGION }}
 
       - name: Build and push (linux/amd64)
+        id: buildpush
         uses: docker/build-push-action@v5
         with:
           context: ${{ env.CONTEXT }}
@@ -60,6 +65,7 @@ jobs:
       - name: Output image uri
         id: image
         run: |
+          # ここで job 出力用に image_uri をセット
           echo "image_uri=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.REPO }}:${{ env.IMAGE_TAG }}" >> $GITHUB_OUTPUT
 
   update-lambda:
@@ -68,6 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       REGION: ${{ env.AWS_REGION }}
+
     steps:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -92,10 +99,12 @@ jobs:
 
       - name: Update existing Image-function or create new Image function
         run: |
-          IMAGE_URI="${{ steps.build-push.outputs.image_uri }}"
+          # job-level outputs を needs で参照
+          IMAGE_URI="${{ needs.build-push.outputs.image_uri }}"
           FN="${{ secrets.LAMBDA_FUNCTION_NAME }}"
           EXISTS="${{ steps.check.outputs.exists }}"
           PACKTYPE="${{ steps.check.outputs.packagetype }}"
+          ROLE_FROM_OLD="${{ steps.check.outputs.role }}"
 
           echo "IMAGE_URI=$IMAGE_URI"
           echo "Function exists = $EXISTS ; PackageType = $PACKTYPE"
@@ -109,15 +118,19 @@ jobs:
             exit 0
           fi
 
-          # if exists and package type is Zip (or other), create a new function name by suffixing -image
           if [ "$EXISTS" = "true" ] && [ "$PACKTYPE" != "Image" ]; then
             NEW_FN="${FN}-image"
             echo "Existing function is ZIP. Creating new image-based function: $NEW_FN"
-            # Use existing role from the old function (retrieved earlier)
-            ROLE="${{ steps.check.outputs.role }}"
+
+            ROLE="$ROLE_FROM_OLD"
             if [ -z "$ROLE" ] || [ "$ROLE" = "None" ]; then
-              echo "No role found from existing function. You can set LAMBDA_ROLE_ARN secret if needed."
-              exit 1
+              # 既存関数からロールが取れない場合は secret を参照
+              if [ -n "${{ secrets.LAMBDA_ROLE_ARN }}" ]; then
+                ROLE="${{ secrets.LAMBDA_ROLE_ARN }}"
+              else
+                echo "No role found. Set secret LAMBDA_ROLE_ARN or ensure old function has Role."
+                exit 1
+              fi
             fi
 
             aws lambda create-function \
@@ -132,14 +145,13 @@ jobs:
             exit 0
           fi
 
-          # if doesn't exist, create new function with given name
           if [ "$EXISTS" = "false" ]; then
             echo "Creating new image-based function: $FN"
-            # require an execution role; prefer secret LAMBDA_ROLE_ARN if provided
+
             if [ -n "${{ secrets.LAMBDA_ROLE_ARN }}" ]; then
               ROLE="${{ secrets.LAMBDA_ROLE_ARN }}"
             else
-              echo "Please set secret LAMBDA_ROLE_ARN with the Lambda execution role ARN, or create manually later."
+              echo "Please set secret LAMBDA_ROLE_ARN with the Lambda execution role ARN."
               exit 1
             fi
 
