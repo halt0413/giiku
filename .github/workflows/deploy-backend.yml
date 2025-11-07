@@ -1,53 +1,33 @@
-name: Deploy Backend to Vercel
-
-on:
-  push:
-    branches: [ "main" ]
-    paths:
-      - "apps/backend/**"
-      - ".github/workflows/deploy-backend-vercel.yml"
-  pull_request:
-    branches: [ "main" ]
-    paths:
-      - "apps/backend/**"
-      - ".github/workflows/deploy-backend-vercel.yml"
-
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      # 1. リポジトリをチェックアウト
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Node.js をセットアップ
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
 
-      # 3. pnpm をセットアップ
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
+          run_install: false  
 
-      # 4. 依存関係をインストール
+      - name: Check pnpm version
+        run: pnpm --version
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: apps/backend
 
-      # 5. ビルド（必要なら）
       - name: Build backend
         run: pnpm build
         working-directory: apps/backend
 
-      # 6. Vercel にデプロイ
       - name: Deploy to Vercel
         run: |
           npx vercel --prod --token ${{ secrets.VERCEL_TOKEN }} \
