@@ -28,7 +28,7 @@ export class GroupService {
     const group = this.groups.find(g => g.id === groupDto.id);
 
     if (!group) {
-      throw new HttpException('グループが存在しません', HttpStatus.NOT_FOUND)
+      throw new HttpException('グループが既に存在しています', HttpStatus.NOT_FOUND)
     }
 
     if (!(group.members!).includes(user)) {

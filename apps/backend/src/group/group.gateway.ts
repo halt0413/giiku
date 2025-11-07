@@ -15,7 +15,7 @@ export class GroupsGateway implements OnGatewayConnection {
             const payload = this.jwt.verify(token);
             client.data.user = payload;
         } catch (error) {
-            client.disconnect();
+            client.disconnect(true);
         }
     }
     @WebSocketServer()
