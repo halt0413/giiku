@@ -2,12 +2,12 @@ name: Deploy Backend Docker Lambda
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
       - "apps/backend/**"
       - ".github/workflows/deploy-backend.yml"
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
       - "apps/backend/**"
       - ".github/workflows/deploy-backend.yml"
@@ -32,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_EC2_METADATA_DISABLED: "true"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,7 +46,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
@@ -90,11 +90,7 @@ jobs:
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG \
             --push \
             .
-        env:
-          AWS_REGION: ap-northeast-1
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-          ECR_REPO: giilu-backend
-          IMAGE_TAG: lambda
+        working-directory: .
 
       - name: Update Lambda Function
         run: |
