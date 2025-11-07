@@ -1,4 +1,4 @@
-name: Deploy Backend
+name: Deploy Backend (Docker Lambda)
 
 on:
   push:
@@ -18,10 +18,10 @@ permissions:
 
 env:
   AWS_REGION: ap-northeast-1
-  STACK_NAME: giilu-backend-httpapi
-  ARTIFACT_BUCKET: ${{ secrets.AWS_ARTIFACT_BUCKET }}
-  PARAM_NAME_PROD: /giilu/prod/NEXT_PUBLIC_API_URL
-  CLOUDFRONT_ORIGIN: https://ds1odkxad3v10.cloudfront.net
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  ECR_REPO: giilu-backend
+  IMAGE_TAG: lambda
+  LAMBDA_NAME: giilu-backend-image
 
 concurrency:
   group: backend-${{ github.ref }}
@@ -51,7 +51,7 @@ jobs:
         run: pnpm biome check || true
 
   deploy:
-    name: Deploy Backend (main)
+    name: Deploy Backend Docker Lambda
     needs: biome
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
@@ -97,96 +97,21 @@ jobs:
       - name: Who am I (debug)
         run: aws sts get-caller-identity
 
-      - name: Package (upload dist to S3)
-        working-directory: apps
+      - name: Login to ECR
         run: |
-          set -euo pipefail
-          aws cloudformation package \
-            --region "${{ env.AWS_REGION }}" \
-            --template-file backend/template.yaml \
-            --s3-bucket "${{ env.ARTIFACT_BUCKET }}" \
-            --output-template-file packaged.yaml
+          aws ecr get-login-password --region $AWS_REGION | \
+          docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-      - name: Validate packaged template
-        working-directory: apps
+      - name: Build & Push Docker Image
         run: |
-          set -euo pipefail
-          aws cloudformation validate-template \
-            --region "${{ env.AWS_REGION }}" \
-            --template-body file://packaged.yaml
+          docker buildx build \
+            --platform linux/amd64 \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG \
+            --push \
+            -f Dockerfile .
 
-      - name: Deploy stack (with diagnostics)
-        id: deploy_stack
-        working-directory: apps
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
-          STACK_NAME: ${{ env.STACK_NAME }}
+      - name: Update Lambda Function
         run: |
-          set -euo pipefail
-
-          deploy() {
-            aws cloudformation deploy \
-              --region "${AWS_REGION}" \
-              --template-file packaged.yaml \
-              --stack-name "${STACK_NAME}" \
-              --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
-              --parameter-overrides \
-                ProjectName=giilu-backend \
-                AllowedOrigin="${CLOUDFRONT_ORIGIN}"
-          }
-
-          if ! deploy; then
-            echo "=== CFN EVENTS (latest) ==="
-            aws cloudformation describe-stack-events \
-              --region "${AWS_REGION}" \
-              --stack-name "${STACK_NAME}" \
-              --query "StackEvents[].{Time:Timestamp,LogicalId:LogicalResourceId,Status:ResourceStatus,Reason:ResourceStatusReason,Type:ResourceType}" \
-              --output table || true
-
-            echo "=== CFN STACK STATUS ==="
-            aws cloudformation describe-stacks \
-              --region "${AWS_REGION}" \
-              --stack-name "${STACK_NAME}" \
-              --query "Stacks[0].{Status:StackStatus,Reason:StackStatusReason}" \
-              --output table || true
-            exit 1
-          fi
-
-          URL=$(aws cloudformation describe-stacks \
-            --region "${AWS_REGION}" \
-            --stack-name "${STACK_NAME}" \
-            --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" \
-            --output text)
-
-          if [ -z "${URL}" ] || [ "${URL}" = "None" ]; then
-            echo "ApiEndpoint Output が見つからない/空です。template.yaml の Outputs を確認してください。"
-            exit 1
-          fi
-
-          echo "api_url=${URL}" >> "$GITHUB_OUTPUT"
-
-      - name: Put API URL to SSM (prod) and verify
-        env:
-          API_URL: ${{ steps.deploy_stack.outputs.api_url }}
-        run: |
-          set -euo pipefail
-          aws ssm put-parameter \
-            --region "${{ env.AWS_REGION }}" \
-            --name "${{ env.PARAM_NAME_PROD }}" \
-            --type String \
-            --overwrite \
-            --value "${API_URL}"
-
-          got=$(aws ssm get-parameter \
-            --region "${{ env.AWS_REGION }}" \
-            --name "${{ env.PARAM_NAME_PROD }}" \
-            --query 'Parameter.Value' --output text)
-
-          if [ "$got" != "${API_URL}" ]; then
-            echo "SSM put/get mismatch: got=$got expected=${API_URL}"
-            exit 1
-          fi
-
-      - name: Finalize
-        run: |
-          echo "Deployed. API URL: ${{ steps.deploy_stack.outputs.api_url }}"
+          aws lambda update-function-code \
+            --function-name $LAMBDA_NAME \
+            --image-uri $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
