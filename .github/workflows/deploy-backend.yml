@@ -6,6 +6,11 @@ on:
     paths:
       - "apps/backend/**"
       - ".github/workflows/deploy-backend-vercel.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "apps/backend/**"
+      - ".github/workflows/deploy-backend-vercel.yml"
 
 permissions:
   contents: read
@@ -21,39 +26,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ コードを取得
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # 2️⃣ Node.js と pnpm を正しい順序でセットアップ
-      - name: Setup Node.js
+      - name: Setup Node.js (required for corepack)
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
-
-      # 3️⃣ pnpm のインストール確認
-      - name: Check pnpm
+      # --- Ensure pnpm is available (corepack) ---
+      - name: Enable corepack and prepare pnpm
         run: |
-          echo "pnpm path: $(which pnpm)"
-          pnpm -v
+          # enable corepack and prepare a specific pnpm version
+          corepack enable
+          corepack prepare pnpm@9.18.1 --activate
+          echo "corepack and pnpm prepared"
+        # no working-directory here
 
-      # 4️⃣ apps/backend に移動して依存関係をインストール
-      - name: Install dependencies
+      # fallback: if somehow pnpm still missing, try global install (keeps logs)
+      - name: Fallback: ensure pnpm present
+        run: |
+          if ! command -v pnpm >/dev/null 2>&1; then
+            echo "pnpm not found — installing globally via npm as fallback"
+            npm install -g pnpm@9.18.1
+          else
+            echo "pnpm already available: $(pnpm -v)"
+          fi
+
+      - name: Debug pnpm & repo
+        run: |
+          echo "node: $(node -v)"
+          echo "npm: $(npm -v)"
+          echo "pnpm: $(pnpm -v || echo 'pnpm not found')"
+          echo "pwd: $(pwd)"
+          ls -la
+          ls -la apps || true
+          ls -la apps/backend || true
+
+      # Install deps inside apps/backend
+      - name: Install backend dependencies
         run: pnpm install --frozen-lockfile
         working-directory: apps/backend
 
-      # 5️⃣ ビルド
       - name: Build backend
         run: pnpm build
         working-directory: apps/backend
 
-      # 6️⃣ Vercel にデプロイ
+      # Deploy to Vercel (using action)
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         with:
