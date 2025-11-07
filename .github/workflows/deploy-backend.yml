@@ -110,7 +110,7 @@ jobs:
             --push \
             -f apps/backend/Dockerfile \
             .
-          working-directory: .  
+          working-directory: ${{ github.workspace }}
 
       - name: Update Lambda Function
         run: |
