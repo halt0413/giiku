@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } fro
 import { GroupService } from './group.service';
 import type { GroupDto } from '../../../../packages/common/src/dto/group.dto'
 import type { PayloadDto } from '../../../../packages/common/src/dto/auth.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('group')
 @UseGuards(AuthGuard)

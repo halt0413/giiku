@@ -1,7 +1,7 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import type{ GroupDto } from '../../../../packages/common/src/dto/group.dto'
-@Injectable()
 
+@Injectable()
 export class GroupService {
   constructor( ) {}
 

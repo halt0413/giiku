@@ -1,20 +1,18 @@
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, ConnectedSocket, MessageBody, OnGatewayConnection, } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import type { GroupDto } from '../../../../packages/common/src/dto/group.dto'
-import type { PayloadDto } from '../../../../packages/common/src/dto/auth.dto';
+// import type { PayloadDto } from '../../../../packages/common/src/dto/auth.dto';
 import { GroupService } from './group.service';
-// import { JwtService } from '@nestjs/jwt';
-import { JwtStrategy } from 'src/auth/jwt.strategy';
+import { JwtService } from '@nestjs/jwt';
 
 @WebSocketGateway({cors: { origin : "*"}})
-
 export class GroupsGateway implements OnGatewayConnection {
 
-    constructor(private readonly groupService: GroupService, private readonly jwt: JwtStrategy) {}
+    constructor(private readonly groupService: GroupService, private readonly jwt: JwtService) {}
     handleConnection(client: Socket) {
         try {
             const token = client.handshake.auth.token;
-            const payload = this.jwt.validate(token);
+            const payload = this.jwt.verify(token);
             client.data.user = payload;
         } catch (error) {
             client.disconnect();

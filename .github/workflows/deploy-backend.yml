@@ -102,9 +102,9 @@ jobs:
         run: |
           set -euo pipefail
           aws cloudformation package \
-            --region "${AWS_REGION}" \
+            --region "${{ env.AWS_REGION }}" \
             --template-file backend/template.yaml \
-            --s3-bucket "${ARTIFACT_BUCKET}" \
+            --s3-bucket "${{ env.ARTIFACT_BUCKET }}" \
             --output-template-file packaged.yaml
 
       - name: Validate packaged template
@@ -112,11 +112,11 @@ jobs:
         run: |
           set -euo pipefail
           aws cloudformation validate-template \
-            --region "${AWS_REGION}" \
+            --region "${{ env.AWS_REGION }}" \
             --template-body file://packaged.yaml
 
       - name: Deploy stack (with diagnostics)
-        id: deploy
+        id: deploy_stack
         working-directory: apps
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
@@ -167,17 +167,26 @@ jobs:
 
       - name: Put API URL to SSM (prod) and verify
         env:
-          API_URL: ${{ steps.deploy.outputs.api_url }}
+          API_URL: ${{ steps.deploy_stack.outputs.api_url }}
         run: |
           set -euo pipefail
           aws ssm put-parameter \
-            --region "${AWS_REGION}" \
-            --name "${PARAM_NAME_PROD}" \
+            --region "${{ env.AWS_REGION }}" \
+            --name "${{ env.PARAM_NAME_PROD }}" \
             --type String \
             --overwrite \
             --value "${API_URL}"
 
           got=$(aws ssm get-parameter \
-            --region "${AWS_REGION}" \
-            --name "${PARAM_NAME_PROD}" \
+            --region "${{ env.AWS_REGION }}" \
+            --name "${{ env.PARAM_NAME_PROD }}" \
             --query 'Parameter.Value' --output text)
+
+          if [ "$got" != "${API_URL}" ]; then
+            echo "SSM put/get mismatch: got=$got expected=${API_URL}"
+            exit 1
+          fi
+
+      - name: Finalize
+        run: |
+          echo "Deployed. API URL: ${{ steps.deploy_stack.outputs.api_url }}"
