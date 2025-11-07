@@ -1,7 +1,7 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import type { EventDto } from '../../../../packages/common/src/dto/event.dto';
-import { DrizzleService } from 'src/db/drizzle.service';
-import { event } from 'src/db/schema';
+import { DrizzleService } from '../db/drizzle.service';
+import { event } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 @Injectable()

@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { DrizzleService } from 'src/db/drizzle.service';
+import { DrizzleService } from '../db/drizzle.service';
 import type { AuthDto } from '../../../../packages/common/src/dto/auth.dto';
 import { users } from '../db/schema';
 import { UserService } from '../user/user.service';

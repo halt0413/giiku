@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { EventService } from './event.service';
-import { GroupService } from 'src/group/group.service';
+import { GroupService } from '../group/group.service';
 import type { PayloadDto } from '../../../../packages/common/src/dto/auth.dto';
 import type { EventDto } from '../../../../packages/common/src/dto/event.dto';
 import { AuthGuard } from '../auth/auth.guard';

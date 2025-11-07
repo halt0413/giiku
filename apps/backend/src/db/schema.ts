@@ -1,7 +1,6 @@
 import {
   date,
   doublePrecision,
-  foreignKey,
   pgTable,
   text,
   timestamp,

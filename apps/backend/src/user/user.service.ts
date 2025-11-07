@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import { DrizzleService } from 'src/db/drizzle.service';
+import { DrizzleService } from '../db/drizzle.service';
 import { users } from '../db/schema';
 import type { CreateUserDto } from './dto/create-user.dto';
 
