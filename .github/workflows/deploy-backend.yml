@@ -1,3 +1,19 @@
+name: Deploy Backend to Vercel
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "apps/backend/**"
+      - ".github/workflows/deploy-backend.yml"
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -15,7 +31,7 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 9
-          run_install: false  
+          run_install: false
 
       - name: Check pnpm version
         run: pnpm --version
