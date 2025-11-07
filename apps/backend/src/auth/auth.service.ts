@@ -32,6 +32,10 @@ export class AuthService {
   async signup(authDto: AuthDto) {
     const isUser = await this.userService.findOne(authDto.id);
 
+    if (!authDto || !authDto.id || !authDto.password) {
+    throw new HttpException('IDとパスワードを送信してください', HttpStatus.BAD_REQUEST);
+  }
+
     if (isUser && isUser.length > 0) {
       console.log('そのIDは使用されています');
       throw new HttpException('そのIDは使用されています', HttpStatus.CONFLICT);
