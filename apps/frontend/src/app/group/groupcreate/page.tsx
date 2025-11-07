@@ -1,5 +1,5 @@
-import  GroupCreateForm  from "../_components/GroupCreateForm";
+import GroupCreateForm from '../_components/GroupCreateForm'
 
 export default function GroupCreatePage() {
-  return <GroupCreateForm />;
+  return <GroupCreateForm />
 }
