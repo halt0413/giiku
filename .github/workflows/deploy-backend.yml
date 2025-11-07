@@ -17,8 +17,10 @@ permissions:
   id-token: write
 
 env:
+  # 既存の VERCEL_TOKEN 等は残しておいて問題ありません
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
 jobs:
   build-and-deploy:
@@ -34,14 +36,13 @@ jobs:
         with:
           node-version: 20
 
-      - name: "Install pnpm (global via npm)"
-        run: |
-          npm install -g pnpm@9
+      - name: Install pnpm (global via npm)
+        run: npm install -g pnpm@9
 
-      - name: "Check pnpm version"
+      - name: Check pnpm version
         run: pnpm -v
 
-      - name: "Debug pnpm and repo (optional)"
+      - name: Debug pnpm and repo (optional)
         run: |
           echo "node: $(node -v)"
           echo "npm: $(npm -v)"
@@ -51,17 +52,21 @@ jobs:
           ls -la apps || true
           ls -la apps/backend || true
 
-      - name: "Install backend dependencies"
+      - name: Install backend dependencies
         run: pnpm install --frozen-lockfile
         working-directory: apps/backend
 
-      - name: "Build backend"
+      - name: Build backend
         run: pnpm build
         working-directory: apps/backend
 
-      - name: "Deploy to Vercel (via CLI)"
+      - name: Trigger Vercel Deploy (via Deploy Hook)
+        env:
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }} # ← 事前に Secrets に登録する
         run: |
-          cd apps/backend
-          npx vercel --prod --confirm \
-            --token "${{ secrets.VERCEL_TOKEN }}" \
-            --project "${{ secrets.VERCEL_PROJECT_ID }}"
+          if [ -z "$VERCEL_DEPLOY_HOOK" ]; then
+            echo "VERCEL_DEPLOY_HOOK is not set. Skipping deploy."
+            exit 1
+          fi
+          # Deploy Hook に対して POST するだけ（簡単・確実）
+          curl -X POST "$VERCEL_DEPLOY_HOOK" -sS --fail
