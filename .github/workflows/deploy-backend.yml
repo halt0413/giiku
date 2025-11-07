@@ -102,13 +102,15 @@ jobs:
           aws ecr get-login-password --region $AWS_REGION | \
           docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-      - name: Build & Push Docker Image
+      - name: Build and push Docker image
         run: |
           docker buildx build \
             --platform linux/amd64 \
-            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG \
+            -t ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }} \
             --push \
-            -f Dockerfile .
+            -f apps/backend/Dockerfile \
+            .
+          working-directory: .  
 
       - name: Update Lambda Function
         run: |
