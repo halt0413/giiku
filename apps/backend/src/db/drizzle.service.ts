@@ -10,7 +10,7 @@ export class DrizzleService {
 
   constructor(private readonly config: ConfigService) {
     const pool = new Pool({
-      connectionString: this.config.get<string>('DATABASE'),
+      connectionString: this.config.get<string>('DATABASE_URL'),
       ssl: { rejectUnauthorized: false },
     });
 
