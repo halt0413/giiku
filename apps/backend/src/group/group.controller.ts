@@ -15,6 +15,7 @@ export class GroupController {
   //   return this.groupService.create(groupDto, user);
   // }
 
+  
   @Post("join")
   join(@Body() groupDto: GroupDto,@Req() req: Request & {user: PayloadDto} ) {
     const user = req.user.id;
