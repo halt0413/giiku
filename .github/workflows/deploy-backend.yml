@@ -2,12 +2,12 @@ name: Deploy Backend to Vercel
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
       - "apps/backend/**"
       - ".github/workflows/deploy-backend-vercel.yml"
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
       - "apps/backend/**"
       - ".github/workflows/deploy-backend-vercel.yml"
@@ -16,45 +16,56 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      # 1. リポジトリをチェックアウト
+      # 1️⃣ リポジトリをチェックアウト
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # 2. Node.js をセットアップ
+      # 2️⃣ Node.js セットアップ
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
 
-      # 3. pnpm をセットアップ
+      # 3️⃣ pnpm セットアップ
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
-          run_install: false
 
-      # 4. 依存関係をインストール
+      # 4️⃣ デバッグ用（pnpm が使えるか確認）
+      - name: Debug pnpm
+        run: |
+          which pnpm
+          pnpm -v
+
+      # 5️⃣ バックエンド依存関係インストール
       - name: Install backend dependencies
         run: pnpm install --frozen-lockfile
         working-directory: apps/backend
 
-      # 5. ビルド
+      # 6️⃣ バックエンドビルド
       - name: Build backend
         run: pnpm build
         working-directory: apps/backend
 
-      # 6. Vercel にデプロイ
+      # 7️⃣ Vercel にデプロイ
       - name: Deploy to Vercel
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          npx vercel --prod \
-            --token $VERCEL_TOKEN \
-            --confirm \
-            --cwd apps/backend
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-args: '--prod'
+          working-directory: apps/backend
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
