@@ -1,119 +1,39 @@
-name: Deploy Backend Docker Lambda
+name: Deploy Backend to Vercel
 
 on:
   push:
     branches: [ "main" ]
     paths:
       - "apps/backend/**"
-      - ".github/workflows/deploy-backend.yml"
-  pull_request:
-    branches: [ "main" ]
-    paths:
-      - "apps/backend/**"
-      - ".github/workflows/deploy-backend.yml"
-
-permissions:
-  id-token: write
-  contents: read
-
-env:
-  AWS_REGION: ap-northeast-1
-  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-  ECR_REPO: giilu-backend
-  IMAGE_TAG: lambda
-  LAMBDA_NAME: giilu-backend-image
-
-concurrency:
-  group: backend-${{ github.ref }}
-  cancel-in-progress: true
+      - ".github/workflows/deploy-backend-vercel.yml"
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-    env:
-      AWS_EC2_METADATA_DISABLED: "true"
-
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Debug repo structure
-        run: ls -R
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
 
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
-
-      - name: Install backend dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: apps/backend
+      - name: Install dependencies
+        run: |
+          cd apps/backend
+          pnpm install --frozen-lockfile
 
       - name: Build backend
-        run: pnpm build
-        working-directory: apps/backend
-
-      - name: Sanitize AWS env (avoid container-role)
         run: |
-          unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE
-          unset AWS_CONTAINER_CREDENTIALS_FULL_URI AWS_CONTAINER_AUTHORIZATION_TOKEN AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
-          unset AWS_WEB_IDENTITY_TOKEN_FILE AWS_ROLE_ARN
-          echo "Sanitized AWS_* environment variables."
+          cd apps/backend
+          pnpm build
 
-      - name: Configure AWS Credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Who am I (debug)
-        run: aws sts get-caller-identity
-
-      - name: Login to ECR
-        run: |
-          aws ecr get-login-password --region $AWS_REGION | \
-          docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-
-      - name: Build and push Docker image
-        run: |
-          docker buildx build \
-            --platform linux/amd64 \
-            -f apps/backend/Dockerfile \
-            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG \
-            --push \
-            .
+      - name: Deploy to Vercel
         env:
-          AWS_REGION: ap-northeast-1
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-          ECR_REPO: giilu-backend
-          IMAGE_TAG: lambda
-
-      - name: Wait for ECR image availability
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }} 
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }} 
         run: |
-          echo "Waiting a few seconds for ECR image replication..."
-          sleep 10
-
-      - name: Update Lambda Function
-        run: |
-          aws lambda update-function-code \
-            --function-name $LAMBDA_NAME \
-            --image-uri $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
-
-      - name: Wait Lambda update
-        run: aws lambda wait function-updated --function-name $LAMBDA_NAME
-
-      - name: Verify Lambda function
-        run: |
-          aws lambda get-function \
-            --function-name $LAMBDA_NAME \
-            --query '{Name:Configuration.FunctionName,Image:Code.ImageUri,State:Configuration.State,Reason:Configuration.StateReason}' \
-            --output table
+          cd apps/backend
+          npx vercel --prod --token $VERCEL_TOKEN --confirm
