@@ -1,0 +1,34 @@
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import type { EventDto } from '../../../../packages/common/src/dto/event.dto';
+import { DrizzleService } from 'src/db/drizzle.service';
+import { event } from 'src/db/schema';
+import { eq } from 'drizzle-orm';
+
+@Injectable()
+export class EventService {
+  constructor(private readonly drizzle: DrizzleService) {}
+
+  async findOne(id: string) {
+    const eventcheack = await this.drizzle.db.select().from(event).where(eq(event.id, id));
+    return  eventcheack.length > 0 ? eventcheack[0] : null;
+  }
+
+  async create(eventDto: EventDto, user: string) {
+    const exists = await this.findOne(eventDto.id);
+
+    if(exists) {
+      throw new HttpException('この合言葉は使用されています', HttpStatus.CONFLICT)
+    }
+
+    return await this.drizzle.db.insert(event)
+          .values({
+            id: eventDto.id,
+            host_user: user,
+            location_name: eventDto.location_name,
+            latitude: eventDto.latitude || 0,
+            longitude: eventDto.longitude || 0,
+            meeting_time: new Date(eventDto.meeting_time),
+          })
+          .returning();
+  }
+}

@@ -4,6 +4,7 @@ import { AuthModule } from './auth/auth.module';
 import { DrizzleModule } from './db/drizzle.module';
 import { UserModule } from './user/user.module';
 import { GroupModule } from './group/group.module';
+import { EventModule } from './event/event.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { GroupModule } from './group/group.module';
     AuthModule,
     DrizzleModule,
     GroupModule,
+    EventModule
   ],
 })
 export class AppModule {}

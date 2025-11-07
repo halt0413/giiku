@@ -9,11 +9,11 @@ import { AuthGuard } from '../auth/auth.guard';
 export class GroupController {
   constructor(private readonly groupService: GroupService) {}
 
-  @Post("create")
-  create(@Body() groupDto: GroupDto,@Req() req: Request & {user: PayloadDto}) {
-    const user = req.user.id;
-    return this.groupService.create(groupDto, user);
-  }
+  // @Post("create")
+  // create(@Body() groupDto: GroupDto,@Req() req: Request & {user: PayloadDto}) {
+  //   const user = req.user.id;
+  //   return this.groupService.create(groupDto, user);
+  // }
 
   @Post("join")
   join(@Body() groupDto: GroupDto,@Req() req: Request & {user: PayloadDto} ) {
@@ -21,8 +21,8 @@ export class GroupController {
     return this.groupService.join(groupDto, user)
   }
 
-  @Get()
-  members(@Body() groupDto: GroupDto ) {
-    return this.groupService.getMembers(groupDto)
-  }
+  // @Get()
+  // members(@Body() groupDto: GroupDto ) {
+  //   return this.groupService.getMembers(groupDto)
+  // }
 }
