@@ -19,7 +19,6 @@ permissions:
 env:
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
 jobs:
   build-and-deploy:
@@ -35,13 +34,13 @@ jobs:
         with:
           node-version: 20
 
-      - name: Enable corepack and prepare pnpm
+      - name: "Enable corepack and prepare pnpm"
         run: |
           corepack enable
           corepack prepare pnpm@9.18.1 --activate
           echo "corepack and pnpm prepared"
 
-      - name: Fallback: ensure pnpm present
+      - name: "Fallback: ensure pnpm present"
         run: |
           if ! command -v pnpm >/dev/null 2>&1; then
             echo "pnpm not found — installing globally via npm as fallback"
@@ -50,7 +49,7 @@ jobs:
             echo "pnpm already available: $(pnpm -v)"
           fi
 
-      - name: Debug pnpm & repo
+      - name: "Debug pnpm & repo"
         run: |
           echo "node: $(node -v)"
           echo "npm: $(npm -v)"
@@ -72,7 +71,6 @@ jobs:
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
         working-directory: apps/backend
