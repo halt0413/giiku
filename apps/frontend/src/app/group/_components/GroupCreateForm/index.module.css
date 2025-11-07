@@ -1,0 +1,71 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding-top: 20px;
+}
+
+.card {
+  width: 360px;
+  padding: 36px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-sizing: border-box;
+  border-radius: 8px;
+}
+
+.title {
+  font-size: 28px;
+  text-align: center;
+  margin-bottom: 6px;
+  color: #5b5b5b;
+  font-weight: 700;
+}
+
+.label {
+  font-size: 17px;
+  color: #475157;
+  margin-top: 10px;
+  padding: 0px 4px;
+}
+
+.card input,
+.card select,
+.card textarea {
+  height: 48px;
+  border-radius: 24px;
+  border: 1px solid #ccc;
+  padding: 12px 18px;
+  background: #ffffff;
+  outline: none;
+  font-size: 16px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.card input[type="number"] {
+  width: 72px;
+  padding: 12px 14px;
+  height: 48px;
+  border-radius: 24px;
+}
+
+.penaltyRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.unit {
+  font-size: 14px;
+  color: #475157;
+}
+
+.buttonRow {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 14px;
+}
