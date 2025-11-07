@@ -5,12 +5,12 @@ on:
     branches: ["main"]
     paths:
       - "apps/backend/**"
-      - ".github/workflows/deploy-backend-vercel.yml"
+      - ".github/workflows/deploy-backend.yml"
   pull_request:
     branches: ["main"]
     paths:
       - "apps/backend/**"
-      - ".github/workflows/deploy-backend-vercel.yml"
+      - ".github/workflows/deploy-backend.yml"
 
 permissions:
   contents: read
@@ -19,7 +19,6 @@ permissions:
 env:
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
 jobs:
   build-and-deploy:
@@ -36,16 +35,12 @@ jobs:
         with:
           node-version: 20
 
-      # --- Ensure pnpm is available (corepack) ---
       - name: Enable corepack and prepare pnpm
         run: |
-          # enable corepack and prepare a specific pnpm version
           corepack enable
           corepack prepare pnpm@9.18.1 --activate
           echo "corepack and pnpm prepared"
-        # no working-directory here
 
-      # fallback: if somehow pnpm still missing, try global install (keeps logs)
       - name: Fallback: ensure pnpm present
         run: |
           if ! command -v pnpm >/dev/null 2>&1; then
@@ -59,13 +54,12 @@ jobs:
         run: |
           echo "node: $(node -v)"
           echo "npm: $(npm -v)"
-          echo "pnpm: $(pnpm -v || echo 'pnpm not found')"
+          if command -v pnpm >/dev/null 2>&1; then pnpm -v; else echo "pnpm not found"; fi
           echo "pwd: $(pwd)"
           ls -la
           ls -la apps || true
           ls -la apps/backend || true
 
-      # Install deps inside apps/backend
       - name: Install backend dependencies
         run: pnpm install --frozen-lockfile
         working-directory: apps/backend
@@ -74,12 +68,10 @@ jobs:
         run: pnpm build
         working-directory: apps/backend
 
-      # Deploy to Vercel (using action)
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
-          working-directory: apps/backend
+        working-directory: apps/backend
