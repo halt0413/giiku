@@ -19,7 +19,6 @@ permissions:
 env:
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
 
 jobs:
   build-and-deploy:
@@ -63,7 +62,6 @@ jobs:
       - name: "Deploy to Vercel (via CLI)"
         run: |
           cd apps/backend
-          # npx will fetch the vercel CLI on demand; --confirm avoids interactive prompts
-          npx vercel --token "${{ secrets.VERCEL_TOKEN }}" --prod --confirm \
-            --org "${{ secrets.VERCEL_ORG_ID }}" \
+          npx vercel --prod --confirm \
+            --token "${{ secrets.VERCEL_TOKEN }}" \
             --project "${{ secrets.VERCEL_PROJECT_ID }}"
