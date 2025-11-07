@@ -10,8 +10,10 @@ export class DrizzleService {
 
   constructor(private readonly config: ConfigService) {
   
+    console.log('DATABASE_URL:', this.config.get<string>('DATABASE_URL'));
     const connectionString = this.config.get<string>('DATABASE_URL');
     if (!connectionString) throw new Error('DATABASE_URL is not defined');
+    console.log('DATABASE_URL:', this.config.get<string>('DATABASE_URL'));
 
     const pool = new Pool({
       connectionString,
