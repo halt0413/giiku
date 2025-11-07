@@ -6,11 +6,6 @@ on:
     paths:
       - "apps/backend/**"
       - ".github/workflows/deploy-backend-vercel.yml"
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "apps/backend/**"
-      - ".github/workflows/deploy-backend-vercel.yml"
 
 permissions:
   contents: read
@@ -24,48 +19,46 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      # 1️⃣ リポジトリをチェックアウト
+      # 1️⃣ コードを取得
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # 2️⃣ Node.js セットアップ
+      # 2️⃣ Node.js と pnpm を正しい順序でセットアップ
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
 
-      # 3️⃣ pnpm セットアップ
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
+          run_install: false
 
-      # 4️⃣ デバッグ用（pnpm が使えるか確認）
-      - name: Debug pnpm
+      # 3️⃣ pnpm のインストール確認
+      - name: Check pnpm
         run: |
-          which pnpm
+          echo "pnpm path: $(which pnpm)"
           pnpm -v
 
-      # 5️⃣ バックエンド依存関係インストール
-      - name: Install backend dependencies
+      # 4️⃣ apps/backend に移動して依存関係をインストール
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: apps/backend
 
-      # 6️⃣ バックエンドビルド
+      # 5️⃣ ビルド
       - name: Build backend
         run: pnpm build
         working-directory: apps/backend
 
-      # 7️⃣ Vercel にデプロイ
+      # 6️⃣ Vercel にデプロイ
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
           working-directory: apps/backend
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
