@@ -2,12 +2,12 @@ name: Deploy Backend Docker Lambda
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
     paths:
       - "apps/backend/**"
       - ".github/workflows/deploy-backend.yml"
   pull_request:
-    branches: ["main"]
+    branches: [ "main" ]
     paths:
       - "apps/backend/**"
       - ".github/workflows/deploy-backend.yml"
@@ -46,6 +46,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: pnpm
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
@@ -90,10 +91,29 @@ jobs:
             -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG \
             --push \
             .
-        working-directory: .
+        env:
+          AWS_REGION: ap-northeast-1
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          ECR_REPO: giilu-backend
+          IMAGE_TAG: lambda
+
+      - name: Wait for ECR image availability
+        run: |
+          echo "Waiting a few seconds for ECR image replication..."
+          sleep 10
 
       - name: Update Lambda Function
         run: |
           aws lambda update-function-code \
             --function-name $LAMBDA_NAME \
             --image-uri $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+
+      - name: Wait Lambda update
+        run: aws lambda wait function-updated --function-name $LAMBDA_NAME
+
+      - name: Verify Lambda function
+        run: |
+          aws lambda get-function \
+            --function-name $LAMBDA_NAME \
+            --query '{Name:Configuration.FunctionName,Image:Code.ImageUri,State:Configuration.State,Reason:Configuration.StateReason}' \
+            --output table
