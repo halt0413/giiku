@@ -1,5 +1,5 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import type{ GroupDto } from '../../../../packages/common/src/dto/group.dto'
+import type { GroupDto } from '../../../../packages/common/src/dto/group.dto'
 
 @Injectable()
 export class GroupService {
@@ -8,16 +8,6 @@ export class GroupService {
   private groups: GroupDto[] = [];
 
   async create(groupDto: GroupDto, user: string) {
-
-    if (!user) {
-      throw new HttpException('ユーザーが存在しません', HttpStatus.NOT_FOUND)
-    }
-
-    const exists = this.groups.find(g => g.id === groupDto.id);
-     if (exists) {
-      throw new HttpException('グループが存在しません', HttpStatus.NOT_FOUND)
-     }
-
     groupDto.members = [user];
     this.groups.push(groupDto);
 
@@ -28,7 +18,7 @@ export class GroupService {
     const group = this.groups.find(g => g.id === groupDto.id);
 
     if (!group) {
-      throw new HttpException('グループが既に存在しています', HttpStatus.NOT_FOUND)
+      throw new HttpException('グループが存在しません', HttpStatus.NOT_FOUND)
     }
 
     if (!(group.members!).includes(user)) {

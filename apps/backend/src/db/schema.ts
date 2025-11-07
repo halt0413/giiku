@@ -16,11 +16,10 @@ export const users = pgTable('users', {
 });
 
 export const event = pgTable('event', {
-  id: uuid('id').primaryKey(),
+  id: text('id').primaryKey(),
   host_user: text('host_user')
     .notNull()
     .references(() => users.id),
-  password: text('password').notNull(),
   location_name: text('location_name').notNull(),
   latitude: doublePrecision('latitude').notNull(),
   longitude: doublePrecision('longitude').notNull(),
