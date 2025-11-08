@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import styles from './index.module.css'
 import { login } from '@/app/lib/api/loginapi'
-import type { AuthDto } from '@common/dto/auth.dto' 
+import type { AuthDto } from '@common/dto/auth.dto'
 
 export default function LoginForm() {
   const router = useRouter()
@@ -25,13 +25,12 @@ export default function LoginForm() {
 
     setPending(true)
     setError(null)
-    
+
     const credentials: AuthDto = { id, password }
 
     try {
       await login(credentials)
-      router.push('/group/groupactions') 
-
+      router.push('/group/groupactions')
     } catch (err) {
       setError((err as Error).message || 'ログインに失敗しました。')
     } finally {
@@ -86,7 +85,7 @@ export default function LoginForm() {
           color="gray"
           size="sm"
           fullWidth
-          disabled={pending} 
+          disabled={pending}
         >
           signupはこちら
         </Button>
@@ -96,7 +95,7 @@ export default function LoginForm() {
           color="gray"
           size="sm"
           fullWidth
-          disabled={pending} 
+          disabled={pending}
         >
           group
         </Button>
