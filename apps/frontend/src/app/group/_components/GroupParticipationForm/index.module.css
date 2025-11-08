@@ -19,7 +19,7 @@
 .title {
   font-size: 28px;
   text-align: center;
-  margin-bottom: 6px;
+  margin-bottom: 50px;
   color: #5b5b5b;
   font-weight: 700;
 }
@@ -52,20 +52,9 @@
   border-radius: 24px;
 }
 
-.penaltyRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.unit {
-  font-size: 14px;
-  color: #475157;
-}
-
 .buttonRow {
   display: flex;
   gap: 50px;
   justify-content: space-between;
-  margin-top: 14px;
+  margin-top: 200px;
 }
