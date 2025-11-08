@@ -3,6 +3,8 @@ import { Alert, Button, PasswordInput, Space, Stack, TextInput, Title } from '@m
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import styles from './index.module.css'
+import { login } from '@/app/lib/api/loginapi'
+import type { AuthDto } from '@common/dto/auth.dto' 
 
 export default function LoginForm() {
   const router = useRouter()
@@ -12,12 +14,29 @@ export default function LoginForm() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
-    const name = String(fd.get('name') || '').trim()
+
+    const id = String(fd.get('id') || '').trim()
     const password = String(fd.get('password') || '').trim()
-    if (!name || !password) return setError('ユーザー名とパスワードを入力してください。')
+
+    if (!id || !password) {
+      setError('IDとパスワードを入力してください。')
+      return
+    }
 
     setPending(true)
     setError(null)
+    
+    const credentials: AuthDto = { id, password }
+
+    try {
+      await login(credentials)
+      router.push('/group/groupactions') 
+
+    } catch (err) {
+      setError((err as Error).message || 'ログインに失敗しました。')
+    } finally {
+      setPending(false)
+    }
   }
 
   return (
@@ -28,9 +47,10 @@ export default function LoginForm() {
       <Space h={28} />
       <Stack gap="lg">
         <TextInput
-          name="name"
-          autoComplete="username"
-          label="ユーザー名"
+          name="id"
+          type="text"
+          autoComplete="id"
+          label="ID"
           classNames={{ label: styles.label, input: styles.pill }}
           size="md"
           radius="xl"
@@ -66,6 +86,7 @@ export default function LoginForm() {
           color="gray"
           size="sm"
           fullWidth
+          disabled={pending} 
         >
           signupはこちら
         </Button>
@@ -75,6 +96,7 @@ export default function LoginForm() {
           color="gray"
           size="sm"
           fullWidth
+          disabled={pending} 
         >
           group
         </Button>
