@@ -8,6 +8,13 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe());
   app.use(express.json());
+
+  app.enableCors({
+    origin: ['https://ds1odkxad3v10.cloudfront.net/'], 
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true, 
+  });
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
