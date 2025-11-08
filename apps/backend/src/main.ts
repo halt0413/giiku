@@ -10,7 +10,7 @@ async function bootstrap() {
   app.use(express.json());
 
   app.enableCors({
-    origin: ['https://ds1odkxad3v10.cloudfront.net/'], 
+    origin: ['https://ds1odkxad3v10.cloudfront.net','http://localhost:3000'], 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true, 
   });
