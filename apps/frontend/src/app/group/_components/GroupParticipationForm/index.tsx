@@ -2,7 +2,7 @@ import styles from './index.module.css'
 import { TextInput } from '@/components/TextInput'
 import GroupButton from '@/components/GroupButton'
 
-export default function GroupCreateForm() {
+export default function GroupParticipationForm() {
   return (
     <div className={styles.container}>
       <main className={styles.card}>
