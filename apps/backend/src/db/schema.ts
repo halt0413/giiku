@@ -4,7 +4,7 @@ import {
   pgTable,
   text,
   timestamp,
-  uuid,
+  integer
 } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
@@ -23,4 +23,7 @@ export const event = pgTable('event', {
   latitude: doublePrecision('latitude').notNull(),
   longitude: doublePrecision('longitude').notNull(),
   meeting_time: timestamp('meeting_time').notNull(),
+  minute: integer('minute').notNull(),
+  penalty: integer('penalty').notNull(),
+  members: text('members').array().default([]),
 });

@@ -5,6 +5,9 @@ export interface EventDto {
     latitude: number;
     longitude: number;
     meeting_time: Date;
+    minute?: number;
+    penalty?: number;
+    members?: string[];
 }
 
 export interface CreateEventDto {

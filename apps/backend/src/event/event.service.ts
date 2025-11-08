@@ -28,6 +28,9 @@ export class EventService {
             latitude: eventDto.latitude || 0,
             longitude: eventDto.longitude || 0,
             meeting_time: new Date(eventDto.meeting_time),
+            minute: eventDto.minute || 1,
+            penalty: eventDto.penalty || 0,
+            members: [user]
           })
           .returning();
   }
