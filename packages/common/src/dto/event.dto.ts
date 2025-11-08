@@ -15,3 +15,11 @@ export interface CreateEventDto {
     user?: string;
     members?: string[];
 }
+
+export interface ResultDto {
+    id: string,
+    members: {
+        id: string;
+        arrived_at: Date;
+    }[];
+}

@@ -40,7 +40,10 @@ export class GroupService {
 
     }
 
-    return { message: "グループに入室しました"};
+    const location = group.location;
+    const meeting_time = new Date(group.meeting_time).toISOString().slice(11, 16);
+
+    return { message: "グループに入室しました", location, meeting_time};
   }
 
   async getMembers(groupDto) {

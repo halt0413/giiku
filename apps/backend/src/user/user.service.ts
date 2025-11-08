@@ -8,10 +8,6 @@ import type { CreateUserDto } from './dto/create-user.dto';
 export class UserService {
   constructor(private readonly drizzle: DrizzleService) {}
 
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
-  }
-
   async findAll() {
     return await this.drizzle.db.select().from(users);
   }

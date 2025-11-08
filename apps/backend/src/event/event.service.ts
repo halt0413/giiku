@@ -1,5 +1,5 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import type { EventDto } from '../../../../packages/common/src/dto/event.dto';
+import type { EventDto, ResultDto } from '../../../../packages/common/src/dto/event.dto';
 import { DrizzleService } from '../db/drizzle.service';
 import { event } from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -33,5 +33,24 @@ export class EventService {
             members: [user]
           })
           .returning();
+  }
+
+  async getResult (resultDto: ResultDto) {
+    const ThisEvent = await this.drizzle.db.select().from(event).where(eq(event.id, resultDto.id));
+    const eventInfo = ThisEvent[0];
+    
+    const meetingTime = new Date(eventInfo.meeting_time);
+    const results = resultDto.members.map(member => {
+      const arrived = new Date(member.arrived_at);
+      const laet = meetingTime.getTime() - arrived.getTime();
+
+      const laetMinutes = Math.floor(laet / 1000 / 60);
+      const penaltyTime = laetMinutes / eventInfo.minute;
+      const penaltyPrice = penaltyTime * eventInfo.penalty;
+
+      return { member: member.id, penaltyTime, penaltyPrice };
+    }) 
+
+    return results;
   }
 }
