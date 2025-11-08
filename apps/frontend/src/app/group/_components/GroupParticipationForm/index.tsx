@@ -9,7 +9,7 @@ export default function GroupCreateForm() {
         <h1 className={styles.title}>グループ参加</h1>
 
         <label className={styles.label} htmlFor="place">
-            あいことば
+          あいことば
         </label>
         <TextInput id="place" label="" placeholder="" />
 
