@@ -1,9 +1,12 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import type { GroupDto } from '../../../../packages/common/src/dto/group.dto'
+import type { GroupDto } from '../../../../packages/common/src/dto/group.dto';
+import { DrizzleService } from '../db/drizzle.service';
+import { event } from '../db/schema';
+import {  sql, eq } from 'drizzle-orm';
 
 @Injectable()
 export class GroupService {
-  constructor( ) {}
+  constructor(private readonly drizzleService: DrizzleService ) {}
 
   private groups: GroupDto[] = [];
 
@@ -15,7 +18,12 @@ export class GroupService {
   }
 
   async join(groupDto: GroupDto, user: string) {
-    const group = this.groups.find(g => g.id === groupDto.id);
+    const group = await this.drizzleService.db
+      .select()
+      .from(event)
+      .where(eq(event.id, groupDto.id))
+      .limit(1)
+      .then(res => res[0]);
 
     if (!group) {
       throw new HttpException('グループが存在しません', HttpStatus.NOT_FOUND)
@@ -23,14 +31,32 @@ export class GroupService {
 
     if (!(group.members!).includes(user)) {
       group.members!.push(user);
+
+      const eventIn = await this.drizzleService.db.update(event)
+      .set({
+        members: sql`array_append(${event.members}, ${user})`,
+      })
+      .where(eq(event.id, groupDto.id));
+
     }
 
     return { message: "グループに入室しました"};
   }
 
   async getMembers(groupDto) {
-    const group = this.groups.find(g => g.id === groupDto.id);
+    const group = await this.drizzleService.db
+      .select()
+      .from(event)
+      .where(eq(event.id, groupDto.id))
+      .limit(1)
+      .then(res => res[0]);
     if (!group) return { error: 'Group not found' };
-    return group.members;
+
+    const member = await this.drizzleService.db
+      .select({ members: event.members })
+      .from(event)
+      .where(eq(event.id, groupDto.id));
+
+    return member[0]?.members ?? [];
   }
 }

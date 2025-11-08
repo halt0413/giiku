@@ -3,9 +3,10 @@ import { GroupService } from './group.service';
 import { GroupController } from './group.controller';
 import { AuthModule } from '../auth/auth.module';
 import { GroupsGateway } from './group.gateway';
+import { DrizzleModule } from '../db/drizzle.module';
 
 @Module({
-  imports: [forwardRef(() => AuthModule)],
+  imports: [DrizzleModule, forwardRef(() => AuthModule)],
   controllers: [GroupController],
   providers: [GroupService, GroupsGateway], 
 })
