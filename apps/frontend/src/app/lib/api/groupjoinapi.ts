@@ -1,14 +1,22 @@
-'use client'
+"use client";
 
-import type { GroupDto } from '@common/dto/group.dto'
-import { apiClient } from '../apiClient'
+import { apiClient } from "@/app/lib/apiClient";
 
-export const joinGroup = async (joinData: GroupDto) => {
+type JoinGroupResponse = {
+  id: string;
+};
+
+export const joinGroup = async (invitationCode: string): Promise<string> => {
   try {
-    const response = await apiClient('group/join', joinData)
-    return response
+    const payload = { invitationCode };
+    const response = await apiClient
+      .post("group/join", { json: payload })
+      .json<JoinGroupResponse>();
+
+    return response.id;
+
   } catch (error) {
-    console.error('API (joinGroup) エラー:', error)
-    throw error
+    console.error("API (joinGroup) エラー:", error);
+    throw error;
   }
-}
+};
