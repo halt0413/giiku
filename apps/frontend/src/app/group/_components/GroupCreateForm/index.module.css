@@ -4,7 +4,7 @@
   align-items: center;
   gap: 32px;
   padding-bottom: 20px;
-  margin-top: -55px;
+  margin-top: -50px;
 }
 
 .card {
@@ -12,7 +12,7 @@
   padding: 36px 28px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 11px;
   box-sizing: border-box;
   border-radius: 8px;
 }
@@ -28,7 +28,7 @@
 .label {
   font-size: 17px;
   color: #475157;
-  margin-top: 10px;
+  margin-top: 3px;
   padding: 0px 4px;
 }
 
@@ -56,17 +56,20 @@
 .penaltyRow {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 30px;
 }
 
 .unit {
   font-size: 14px;
   color: #475157;
+  display: inline-block; /* 幅を指定できるようにする */
+  min-width: 2em; /* 2文字ぶんの幅を確保 */
+  text-align: center; /* 中央寄せ（任意） */
 }
 
 .buttonRow {
   display: flex;
   gap: 50px;
   justify-content: space-between;
-  margin-top: 14px;
+  margin-top: 20px;
 }
