@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 import './globals.css'
+import 'mapbox-gl/dist/mapbox-gl.css'
 import Providers from './providers'
 
 export const viewport: Viewport = {

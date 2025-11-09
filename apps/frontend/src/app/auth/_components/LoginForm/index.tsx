@@ -1,5 +1,5 @@
 'use client'
-import { Alert, Button, PasswordInput, Space, Stack, TextInput, Title } from '@mantine/core'
+import { Button, PasswordInput, Space, Stack, TextInput, Title } from '@mantine/core'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import styles from './index.module.css'
@@ -64,11 +64,7 @@ export default function LoginForm() {
           radius="xl"
           required
         />
-        {error && (
-          <Alert title="エラー" color="red">
-            {error}
-          </Alert>
-        )}
+        {error && <div className={styles.error}>{error}</div>}
         <Button
           type="submit"
           loading={pending}
