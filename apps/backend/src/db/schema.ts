@@ -22,7 +22,7 @@ export const event = pgTable('event', {
   location_name: text('location_name').notNull(),
   latitude: doublePrecision('latitude').notNull(),
   longitude: doublePrecision('longitude').notNull(),
-  meeting_time: text('meeting_time').notNull(),
+  meeting_time: timestamp('meeting_time').notNull(),
   minute: integer('minute').notNull(),
   penalty: integer('penalty').notNull(),
   members: text('members').array().default([]),
