@@ -4,7 +4,7 @@ export interface EventDto {
     location_name: string;
     latitude: number;
     longitude: number;
-    meeting_time: Date;
+    meeting_time: string;
     minute?: number;
     penalty?: number;
     members?: string[];

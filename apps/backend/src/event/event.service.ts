@@ -19,6 +19,16 @@ export class EventService {
     if(exists) {
       throw new HttpException('この合言葉は使用されています', HttpStatus.CONFLICT)
     }
+    // 現在の日付にフロントからの時間(HH:mm)を組み合わせる
+    const [hours, minutes] = eventDto.meeting_time.split(':').map(Number);
+    const now = new Date();
+    const meetingDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      hours,
+      minutes
+    );
 
     return (await this.drizzle.db.insert(event)
           .values({
@@ -27,7 +37,7 @@ export class EventService {
             location_name: eventDto.location_name,
             latitude: eventDto.latitude || 0,
             longitude: eventDto.longitude || 0,
-            meeting_time: new Date(eventDto.meeting_time),
+            meeting_time: meetingDate,
             minute: eventDto.minute || 1,
             penalty: eventDto.penalty || 0,
             members: [user]
