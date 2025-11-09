@@ -14,12 +14,18 @@ export class EventService {
   }
 
   async create(eventDto: EventDto, user: string) {
+  // 同じ合言葉のイベントがないかチェック
     const exists = await this.findOne(eventDto.id);
-
-    if(exists) {
-      throw new HttpException('この合言葉は使用されています', HttpStatus.CONFLICT)
+    if (exists) {
+      throw new HttpException('この合言葉は使用されています', HttpStatus.CONFLICT);
     }
-    // 現在の日付にフロントからの時間(HH:mm)を組み合わせる
+
+    // meeting_time が正しい HH:mm 形式かチェック
+    if (!eventDto.meeting_time || !/^\d{1,2}:\d{2}$/.test(eventDto.meeting_time)) {
+      throw new HttpException('meeting_time の形式が不正です', HttpStatus.BAD_REQUEST);
+    }
+
+    // HH:mm → Date に変換（今日の日付 + 時刻）
     const [hours, minutes] = eventDto.meeting_time.split(':').map(Number);
     const now = new Date();
     const meetingDate = new Date(
@@ -30,20 +36,32 @@ export class EventService {
       minutes
     );
 
-    return (await this.drizzle.db.insert(event)
-          .values({
-            id: eventDto.id,
-            host_user: user,
-            location_name: eventDto.location_name,
-            latitude: eventDto.latitude || 0,
-            longitude: eventDto.longitude || 0,
-            meeting_time: meetingDate,
-            minute: eventDto.minute || 1,
-            penalty: eventDto.penalty || 0,
-            members: [user]
-          })
-          .returning())[0];
+    // latitude / longitude のデフォルト値
+    const latitude = eventDto.latitude ?? 0;
+    const longitude = eventDto.longitude ?? 0;
+    const minute = eventDto.minute ?? 1;
+    const penalty = eventDto.penalty ?? 0;
+
+    try {
+      return (await this.drizzle.db.insert(event)
+        .values({
+          id: eventDto.id,
+          host_user: user,
+          location_name: eventDto.location_name,
+          latitude,
+          longitude,
+          meeting_time: meetingDate, // timestamp に Date を渡す
+          minute,
+          penalty,
+          members: [user], // 初期メンバーはホストのみ
+        })
+        .returning())[0];
+    } catch (err) {
+      console.error('DB insertion error:', err);
+      throw new HttpException('イベント作成に失敗しました', 500);
+    }
   }
+
 
   async getResult (resultDto: ResultDto) {
     const ThisEvent = await this.drizzle.db.select().from(event).where(eq(event.id, resultDto.id));
