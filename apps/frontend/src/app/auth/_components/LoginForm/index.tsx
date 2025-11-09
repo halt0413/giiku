@@ -1,10 +1,12 @@
 'use client'
-import { Button, PasswordInput, Space, Stack, TextInput, Title } from '@mantine/core'
+
+import { Button, PasswordInput, Space, Stack, TextInput } from '@mantine/core'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import styles from './index.module.css'
 import { login } from '@/app/lib/api/loginapi'
 import type { AuthDto } from '@common/dto/auth.dto'
+import Image from 'next/image'
 
 export default function LoginForm() {
   const router = useRouter()
@@ -40,9 +42,14 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className={styles.form}>
-      <Title order={1} className={styles.siteTitle}>
-        サイト名
-      </Title>
+     <Image
+        src="/icon.png"
+        alt="サイトロゴ"
+        width={270}
+        height={280}
+        className={styles.logo}
+        priority
+      />
       <Space h={28} />
       <Stack gap="lg">
         <TextInput

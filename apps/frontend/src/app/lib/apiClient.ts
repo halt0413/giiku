@@ -22,7 +22,6 @@ export const apiClient = ky.create({
         if (response.status === 401 && typeof window !== 'undefined') {
           console.error('認証エラー (401)。ログインページにリダイレクトします。')
           localStorage.removeItem('auth_token')
-          window.location.href = '/auth/login'
         }
       },
     ],
