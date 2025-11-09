@@ -25,20 +25,24 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
+      # 1. リポジトリをチェックアウト
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # 2. Node.js セットアップ
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
+      # 3. pnpm インストール
       - name: Install pnpm globally
         run: npm install -g pnpm@9
 
-      - name: Debug pnpm and repo (optional)
+      # 4. デバッグ（オプション）
+      - name: Debug pnpm and repo
         run: |
           echo "node: $(node -v)"
           echo "npm: $(npm -v)"
@@ -47,21 +51,25 @@ jobs:
           ls -la
           ls -la apps/backend || true
 
+      # 5. バックエンド依存関係インストール
       - name: Install backend dependencies
         run: pnpm install --frozen-lockfile
         working-directory: apps/backend
 
+      # 6. Drizzle マイグレーション生成
       - name: Generate Drizzle migrations
         working-directory: apps/backend
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npx drizzle-kit generate --config ./src/db/drizzle.config.ts
 
+      # 7. バックエンドビルド
       - name: Build backend
-        run: pnpm build
         working-directory: apps/backend
+        run: pnpm build
 
-      - name: Trigger Vercel Deploy (via Deploy Hook)
+      # 8. Vercel デプロイ（Deploy Hook）
+      - name: Trigger Vercel Deploy
         env:
           VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
         run: |

@@ -1,10 +1,9 @@
-// CommonJS 用
 import { join } from 'path';
 
-// __dirname は CommonJS で自動的に使える
 export default {
-  schema: [join(__dirname, 'schema.ts')],
-  out: join(__dirname, 'drizzle'),
-  driver: 'pg',
-  dbCredentials: process.env.DATABASE_URL,
+  schema: [join(__dirname, 'schema.ts')],  // schema.ts の絶対パス
+  out: join(__dirname, 'drizzle'),         // 出力先
+  dialect: 'postgresql',                   // ← これを追加
+  driver: 'pg',                            // v0.31でも driver は残してOK
+  dbCredentials: process.env.DATABASE_URL, // 環境変数から取得
 };
