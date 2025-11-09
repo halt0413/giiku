@@ -1,8 +1,10 @@
-import { defineConfig } from 'drizzle-kit';
+// CommonJS 用
+import { join } from 'path';
 
-export default defineConfig({
-  schema: './schema.ts',         // apps/backend/src/db/schema.ts
-  out: './migrations',           // migration 出力先
-  dialect: 'postgresql',
-  connectionString: process.env.DATABASE_URL,
-});
+// __dirname は CommonJS で自動的に使える
+export default {
+  schema: [join(__dirname, 'schema.ts')],
+  out: join(__dirname, 'drizzle'),
+  driver: 'pg',
+  dbCredentials: process.env.DATABASE_URL,
+};
