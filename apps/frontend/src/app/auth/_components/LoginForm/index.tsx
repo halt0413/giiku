@@ -64,11 +64,7 @@ export default function LoginForm() {
           radius="xl"
           required
         />
-        {error && (
-          <div className={styles.error}>
-            {error}
-          </div>
-        )}
+        {error && <div className={styles.error}>{error}</div>}
         <Button
           type="submit"
           loading={pending}

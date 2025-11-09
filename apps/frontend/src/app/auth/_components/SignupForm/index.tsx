@@ -3,9 +3,9 @@
 import { Button, PasswordInput, Space, Stack, TextInput, Title } from '@mantine/core'
 import { useState } from 'react'
 import styles from './index.module.css'
-import { useRouter } from 'next/navigation' 
-import { signup } from '@/app/lib/api/signapi' 
-import type { AuthDto } from '@common/dto/auth.dto' 
+import { useRouter } from 'next/navigation'
+import { signup } from '@/app/lib/api/signapi'
+import type { AuthDto } from '@common/dto/auth.dto'
 
 export default function SignupForm() {
   const router = useRouter()
@@ -15,7 +15,7 @@ export default function SignupForm() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
-    const id = String(fd.get('id') || '').trim() 
+    const id = String(fd.get('id') || '').trim()
     const password = String(fd.get('password') || '').trim()
 
     if (!id || !password) {
@@ -30,8 +30,7 @@ export default function SignupForm() {
 
     try {
       await signup(payload)
-      router.push('/auth/login') 
-
+      router.push('/auth/login')
     } catch (err) {
       setError((err as Error).message || 'アカウントの作成に失敗しました。')
     } finally {
@@ -57,15 +56,13 @@ export default function SignupForm() {
         <PasswordInput
           name="password"
           label="パスワード"
-          autoComplete="new-password" 
+          autoComplete="new-password"
           classNames={{ label: styles.label, input: styles.pill }}
           size="md"
           radius="xl"
           required
         />
-        {error && (
-          <div className={styles.error}>{error}</div>
-        )}
+        {error && <div className={styles.error}>{error}</div>}
         <Button
           type="submit"
           loading={pending}
