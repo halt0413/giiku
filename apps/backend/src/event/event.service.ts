@@ -20,7 +20,7 @@ export class EventService {
       throw new HttpException('この合言葉は使用されています', HttpStatus.CONFLICT)
     }
 
-    return await this.drizzle.db.insert(event)
+    return (await this.drizzle.db.insert(event)
           .values({
             id: eventDto.id,
             host_user: user,
@@ -32,13 +32,13 @@ export class EventService {
             penalty: eventDto.penalty || 0,
             members: [user]
           })
-          .returning();
+          .returning())[0];
   }
 
   async getResult (resultDto: ResultDto) {
     const ThisEvent = await this.drizzle.db.select().from(event).where(eq(event.id, resultDto.id));
     const eventInfo = ThisEvent[0];
-    
+
     const meetingTime = new Date(eventInfo.meeting_time);
     const results = resultDto.members.map(member => {
       const arrived = new Date(member.arrived_at);

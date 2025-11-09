@@ -40,7 +40,7 @@ export class GroupService {
 
     }
 
-    const location = group.location;
+    const location = group.location_name;
     const meeting_time = new Date(group.meeting_time).toISOString().slice(11, 16);
 
     return { message: "グループに入室しました", location, meeting_time};

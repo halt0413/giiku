@@ -31,7 +31,7 @@ export class EventController {
     }
     const SocketGroup = await this.groupService.create(GroupDto, user);
 
-    return {DB: DBEvent, Socket: SocketGroup};
+    return {id: DBEvent.id, location:DBEvent.location_name, meeting_time: new Date(DBEvent.meeting_time) , Socket: SocketGroup};
   }
 
   @Post("result")
