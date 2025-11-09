@@ -1,0 +1,124 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding-top: 20px;
+}
+
+.cardWrap {
+  width: 360px;
+  padding: 18px 16px 28px 16px;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.label {
+  color: #5b5b5b;
+  font-weight: 700;
+  font-size: 16px;
+  padding-left: 6px;
+}
+
+.location {
+  font-size: 22px;
+  color: #5b5b5b;
+  margin-left: 30px;
+  padding: 6px 0;
+  font-weight: 800;
+}
+
+.ruleLine {
+  width: 100%;
+  height: 1px;
+  background: rgba(0,0,0,0.25);
+  margin: 8px 0 12px 0;
+  opacity: 0.6;
+}
+
+.time {
+  font-size: 36px;
+  font-weight: 800;
+  color: #5b5b5b;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.notifyBtn {
+  align-self: center;
+  margin-top: 8px;
+  background: #f2fda8; 
+  border: none;
+  border-radius: 24px;
+  padding: 12px 28px;
+  font-weight: 700;
+  color: #2b6b7a;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.participantsCard {
+  margin-top: 18px;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 18px 18px 12px 18px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+}
+
+.participantsHeader {
+  text-align: center;
+  color: #6a6a6a;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.participantList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.participantRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 6px;
+  border-bottom: 2px solid rgba(0,0,0,0.08);
+}
+
+.name {
+  font-size: 28px;
+  font-weight: 800;
+  color: #4b4b4b;
+  line-height: 1;
+}
+
+.statusWrap {
+  margin-left: 12px;
+}
+
+.pill {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 13px;
+  min-width: 56px;
+  text-align: center;
+}
+
+.pillTime {
+  background: #665e5d;
+  color: #fff;
+}
+
+.pillArrived {
+  background: #5aa3e6;
+  color: #fff;
+}
+
