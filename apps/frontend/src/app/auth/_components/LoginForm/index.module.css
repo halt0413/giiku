@@ -1,14 +1,12 @@
 .form {
   display: flex;
   flex-direction: column;
+  margin-bottom: 100px;
 }
 
-.siteTitle {
-  font-size: 44px;
-  line-height: 1.2;
-  font-weight: 800;
-  color: #5b5b5b;
-  text-align: center;
+.logo {
+  display: block;
+  margin: 0 auto;
 }
 
 .label {
