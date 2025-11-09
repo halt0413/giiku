@@ -1,3 +1,5 @@
+'use client'
+
 import styles from './index.module.css'
 import { TextInput } from '@/components/TextInput'
 import GroupButton from '@/components/GroupButton'

@@ -8,7 +8,7 @@ export default function SettingButton() {
   const router = useRouter()
 
   const handleClick = () => {
-    router.push('/group/settings')
+    router.push('/group/setting')
   }
 
   return (

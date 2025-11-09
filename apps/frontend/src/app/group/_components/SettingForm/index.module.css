@@ -1,0 +1,53 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding-top: 20px;
+}
+
+.card {
+  width: 360px;
+  padding: 36px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  border-radius: 8px;
+}
+
+.title {
+  font-size: 28px;
+  text-align: center;
+  margin-bottom: 55px;
+  color: #5b5b5b;
+  font-weight: 700;
+}
+
+.card input,
+.card select,
+.card textarea {
+  height: 48px;
+  border-radius: 24px;
+  border: 1px solid #ccc;
+  padding: 12px 18px;
+  background: #ffffff;
+  outline: none;
+  font-size: 16px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.card input[type="number"] {
+  width: 72px;
+  padding: 12px 14px;
+  height: 48px;
+  border-radius: 24px;
+}
+
+.buttonRow {
+  display: flex;
+  gap: 50px;
+  justify-content: space-between;
+  margin-top: 140px;
+}
