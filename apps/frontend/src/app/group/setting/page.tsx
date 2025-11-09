@@ -1,9 +1,9 @@
-import SettingForm from "../_components/SettingForm"
+import SettingForm from '../_components/SettingForm'
 
-export default function SettingView () {
+export default function SettingView() {
   return (
     <div>
-        <SettingForm />
+      <SettingForm />
     </div>
   )
 }

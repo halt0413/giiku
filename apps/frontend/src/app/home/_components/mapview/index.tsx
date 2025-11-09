@@ -1,34 +1,44 @@
-"use client";
+'use client';
+import { useEffect, useState, useRef } from 'react';
+import mapboxgl from 'mapbox-gl';
+import MapboxLanguage from '@mapbox/mapbox-gl-language';
+import 'mapbox-gl/dist/mapbox-gl.css';
+ 
+export default function SimpleMap() {
+  mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? '';
+  const mapContainer = useRef(null);
+  const [map, setMap] = useState(null);
+ 
+  useEffect(() => {
+    const initializeMap = ({
+      setMap,
+      mapContainer,
+    }: {
+      setMap: any;
+      mapContainer: any;
+    }) => {
+      const map = new mapboxgl.Map({
+        container: mapContainer.current,
+        center: [139.7670516, 35.6811673], 
+        zoom: 15,
+        style: 'mapbox://styles/mapbox/streets-v12',
+      });
+ 
+      const language = new MapboxLanguage({ defaultLanguage: 'ja' });
+      map.addControl(language);
 
-import { useState } from 'react';
-import Map, { type ViewState } from 'react-map-gl';
-import styles from './index.module.css';
-
-const INITIAL_VIEW_STATE = {
-  longitude: 139.767125,
-  latitude: 35.681236,
-  zoom: 14,
-};
-
-export const MapComponent = () => {
-  const [viewState, setViewState] = useState<ViewState>(INITIAL_VIEW_STATE);
-
-  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
-
-  if (!mapboxToken) {
-    console.error("Mapbox Access Token が .env.local で設定されていません。");
-    return <div className={styles.error}>Mapbox トークンがありません。</div>;
-  }
-
+      map.on('load', () => {
+        setMap(map);
+        map.resize();
+      });
+    };
+ 
+    if (!map) initializeMap({ setMap, mapContainer });
+  }, [map]);
+ 
   return (
-    <div className={styles.mapContainer}>
-      <Map
-        {...viewState}
-        mapboxAccessToken={mapboxToken}
-        onMove={(evt) => setViewState(evt.viewState)}
-        mapStyle="mapbox://styles/mapbox/streets-v12"
-        style={{ width: '100%', height: '100%' }}
-      />
-    </div>
+    <>
+      <div ref={mapContainer} style={{ width: '100%', height: '100vh' }} />
+    </>
   );
-};
+}
